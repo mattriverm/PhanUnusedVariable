@@ -1,0 +1,554 @@
+<?php
+// this should fail on $one and $two
+class testBeing {
+    public function add(int $my_param):int {
+        $one = "hello world";
+        $two = $my_param;
+        $my_param+1;
+        return $my_param;
+    }
+
+    public function sub(int $other_param) {
+        return $other_param;
+    }
+}
+
+// This should pass
+class testMethodWithAssignment {
+    public function sha1_verify($password, $hash)
+    {
+        $shaHash = sha1($password);
+        return ($shaHash === $hash);
+    }
+}
+
+// This should fail on $three
+class testMethodArgs {
+    public function sha1_verify($password, $hash, $three)
+    {
+        $shaHash = sha1($password);
+        return ($shaHash === $hash);
+    }
+}
+
+// this should pass
+class testAssignedInControlStructure {
+    public function sha1_verify($password, $hash)
+    {
+        $t = new testMethodWithAssignment;
+        if (true == 1) {
+            $res = $t->sha1_verify($password, $hash);
+        }
+        
+        return ($res === $hash);
+    }
+}
+
+// this should fail on $four
+class testUnusedInControlStructure {
+    public function sha1_verify($password, $hash)
+    {
+        $four = null;
+        $t = new testMethodWithAssignment;
+        if (true == 1) {
+            $four = $t->sha1_verify($password, $hash);
+        }
+        
+        return ($password === $hash);
+    }
+}
+
+// this should still fail on $five
+class testTrackAssignInControlStructure {
+    public function sha1_verify($password, $hash)
+    {
+        $five = null;
+        $t = new testMethodWithAssignment;
+        if (true == 1) {
+            $five = $t->sha1_verify($password, $hash);
+        }
+        
+        return ($password === $hash);
+    }
+}
+
+// Ok
+class testUsedAsReturnValue {
+    public function test()
+    {
+        $a = 'b';
+        return $a;
+    }
+}
+
+// This is ok
+class testUsedAsCondition {
+    public function test()
+    {
+        $a = ['a', 'b', 'c'];
+        $b = array_shift($a);
+
+        if ($b == 'a') {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+// This is ok
+class testUsedInControlStructure {
+    public function test()
+    {
+        $a = 'b';
+        $b = 'a';
+        if ($a == 'b') {
+            $b = 'c';
+            if ($b == 'c') {
+                $c = 'd';
+            }
+        }
+
+        return $c;
+    }
+}
+// This is not ok at $six
+class testAssignmentInCondAndNeverUsed {
+    public function test()
+    {
+        $a = 'b';
+        $six = 'a';
+        if ($a == 'b') {
+            $six = 'c';
+            // Sure - but then it is never used
+            if ($six = 'c') {
+                $c = 'd';
+            }
+        }
+
+        return $c;
+    }
+}
+
+// This is ok
+class testForeach {
+    public function pub()
+    {
+        $puba = ['a', 'b', 'c'];
+
+        $pub = array_shift($puba);
+
+        foreach($pub as $l) {
+            echo $l;
+        }
+    }
+}
+
+// This should fail on $seven
+class testAssignInWhile {
+    public function pub()
+    {
+        $puba = ['a', 'b', 'c'];
+
+        $pub = array_shift($puba);
+
+        while($pub == 'a') {
+            $seven = 0;
+        }
+    }
+}
+
+// This should not be ok
+class testAssignAndUseInSameStatement
+{
+    public function test()
+    {
+        $eight = ['a', 'b', 'c'];
+        $eight = array_shift($eight);
+    }
+}
+
+// These should be ok
+class testSql
+{
+    public function prepare(string $sql, array $params)
+    {
+        return [$sql, $params];
+    }
+}
+class testUseInMethodCall
+{
+    public function test()
+    {
+        $id = 1;
+        $db = new testSql;
+
+        $statement = $db->prepare(
+            'SELECT * FROM users WHERE id = ?',
+            [$id]
+        );
+
+        return $statement; 
+    }
+}
+
+// This should fail on $eight in elseif
+class testForeachElseIf
+{
+    public function test()
+    {
+        $a = ['a', 'b', 'c'];
+        $nine = ['a', 'b', 'c'];
+        
+        foreach ($a as $b) {
+            if (count($nine) == 1) {
+                $nine = array_shift($nine);
+            } elseif (count($nine) > 1) {
+                $nine = array_shift($nine);
+            } else {
+                continue;
+            }
+        }
+    }
+}
+
+// Ok. Interfaces should be ignored
+interface testShouldIgnore
+{
+    public function test($a);
+}
+
+
+class testMoreMethodCalls
+{
+    private function renderSection($a, $b, $c, $d)
+    {
+        return implode(",", [$a, $b, $c, $d]);
+    }
+
+    public function render($newConfig, $oldConfig)
+    {
+        $html = "";
+        $changedSections = [];
+
+        foreach ($changedSections as $ac => $sections) {
+            $html .= $this->renderSection($ac, $sections, $newConfig, $oldConfig);
+        }
+
+        return $html;
+    }
+}
+
+// This should only fail on $ten (was false pos)
+class testCountingInForeach
+{
+    public function testForeach()
+    {
+        $a = ['a', 'b', 'c'];
+        $start = 0;
+        $end = 3;
+        foreach ($a as $b) {
+            $ten = 'hello world';
+            if ($start == 2) {
+                echo $b;
+            }
+            if ($end == 0) {
+                echo $a[0];
+            }
+            $end = $end-1;
+            $start = $start+1;
+        }
+    }
+}
+
+// Fail on $eleven
+class testCountingInWhile
+{
+    public function testForeach()
+    {
+        $a = ['a', 'b', 'c'];
+        $start = 0;
+        $end = 3;
+        while ($b = array_shift($a)) {
+            $eleven = 'hello world';
+            if ($start == 2) {
+                echo $b;
+            }
+            if ($end == 0) {
+                echo $a[0];
+            }
+            $end = $end-1;
+            $start = $start+1;
+        }
+    }
+}
+
+// Fail on $twelwe
+class testCountingInFor
+{
+    public function testForeach()
+    {
+        $a = ['a', 'b', 'c'];
+        $start = 0;
+        $end = 3;
+        for ($b = 0; $b < 10; $b++) {
+            $twelwe = 'hello world';
+            if ($start == 2) {
+                echo $b;
+            }
+            if ($end == 0) {
+                echo $a[0];
+            }
+            $end = $end-1;
+            $start = $start+1;
+        }
+    }
+}
+
+// Fail on $thirteen
+class testCountingInDo
+{
+    public function testForeach()
+    {
+        $a = ['a', 'b', 'c'];
+        $start = 0;
+        $end = 3;
+        $c = array_shift($a);
+        do {
+            $thirteen = 'hello world';
+            if ($start == 2) {
+                echo $c;
+            }
+            if ($end == 0) {
+                echo $a[0];
+            }
+            $end = $end-1;
+            $start = $start+1;
+        } while ($b = array_shift($a));
+    }
+}
+
+// This said statement is never used but should be ok
+class testAssignmentInWhileCondition
+{
+    public function all(): array
+    {
+        $collection = [];
+        $statement = 'select * from users';
+        while ($row = $statement->fetch()) {
+            $collection[] = $row;
+        }
+        
+        return $collection;
+    }
+}
+
+// This should be ok
+class testMoreAssignmentInCondition
+{
+    public function test()
+    {
+        if ($handle = opendir('/etc/shadow')) {
+            while (false !== ($file = readdir($handle))) {
+                if ($file !== '.' && $file != '..') {
+                    echo 'file';
+                }
+            }
+        }
+    }
+}
+
+// This should be ok
+class testUseInCondition
+{
+    public function isSatisfiedBy($user)
+    {
+        if (in_array('A', $user->getFlags())) {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+// This should be ok
+class testUsedInReturnMethodCall
+{
+    protected $tableObject;
+
+    private function fetchById($id)
+    {
+        $select = $this->tableObject->select()->where('id = ?', $id);
+        return $this->tableObject->fetchRow($select);
+    }
+}
+
+// This said itemid is never used but should be ok
+class testMoreUsesInReturn
+{
+    private function fetchById($itemId)
+    {
+        return [$itemId];
+    }
+
+    private function map(array $a, array $b)
+    {
+        return array_merge($a, $b);
+    }
+
+    public function get($itemId)
+    {
+        return $this->map([], $this->fetchById($itemId));
+    }
+}
+
+class testListAssignOk
+{
+    private function test()
+    {
+        list($a, $b) = ['a', 'b'];
+        return [$a, $b];
+    }
+}
+class testListAssign
+{
+    private function test()
+    {
+        list($a, $fourteen) = ['a', 'b'];
+        return $a;
+    }
+}
+/**
+ * References
+ *
+ *
+ */
+// Ok
+class testSimpleReferenceInParam
+{
+    public function test(&$a)
+    {
+        $a = 'b';
+    }
+}
+
+// Fail on $fourteen
+class testSimpleReferencesInParam
+{
+    public function test(&$a, &$fifteen)
+    {
+        $a = 'b';
+    }
+}
+
+// Ok
+class testSimpleReferencesAssignmentInParam
+{
+    public function test(&$a, &$b)
+    {
+        $a = $b;
+    }
+}
+
+// $a and $b is never used. You have modified $a, but never use it.
+// However meaningless, it is correct that they both are unused.
+class testSimpleReference
+{
+    public function test()
+    {
+        $seventeen = 'a';
+        $sixteen = &$seventeen;
+        $sixteen = 'b';
+    }
+}
+
+// This is ok. We are using both a and b
+class testSimpleReferenceIsUsed
+{
+    public function test()
+    {
+        $a = 'a';
+        $b = &$a;
+        $b = 'b';
+        if  ($a == 'b') {
+            return true;
+        }
+    }
+}
+class testSimpleParamReferenceIsUsed
+{
+    public function test(&$a)
+    {
+        $b = &$a;
+        $b = 'b';
+        if  ($a == 'b') {
+            return true;
+        }
+    }
+}
+
+// $a is never used
+class testSimpleReferenceIsNotUsed
+{
+    public function test()
+    {
+        $nineteen = 'a';
+        $eighteen = &$nineteen;
+        $eighteen = 'b';
+        if  ($eighteen == 'b') {
+            return true;
+        }
+    }
+}
+
+// This is ok
+class testSimpleReferenceUseOriginal
+{
+    public function test()
+    {
+        $a = 'a';
+        $b = &$a;
+        $b = 'b';
+        return explode("/", $a);
+    }
+}
+
+class testReferences
+{
+    public function setConfig($config)
+    {
+        return $config;
+    }
+
+    public static function new(array $config)
+    {
+        $ret = new static;
+        
+        // Loop sections and set false to everything
+        foreach ($config as $secName => &$section) {
+            foreach ($section['fields'] as &$confField) {
+                $confField = array_merge($confField, ['edit' => false]);
+            }
+        }
+        $ret->setConfig($config);
+
+        return $ret;
+    }
+}
+
+// @todo 
+// class testIncremenetButNeverReturnedOrUsed {
+//     public function pub()
+//     {
+//         $puba = ['a', 'b', 'c'];
+
+//         $pub = array_shift($puba);
+
+//         while($pub == 'a') {
+//             $c = 0;
+//         }
+
+//         $c++;
+//     }
+// }
+

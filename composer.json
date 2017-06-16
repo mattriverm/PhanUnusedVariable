@@ -1,0 +1,15 @@
+{
+    "name": "mattriverm/PhanUnusedVariable",
+    "description": "A plugin for etsy/phan that checks for unused variables",
+    "keywords": ["php"],
+    "type": "project",
+    "license": "Apache 2.0",
+    "authors": [
+        {
+            "name": "Mattias Forsberg"
+        }
+    ],
+    "require-dev": {
+        "etsy/phan": "~0.8"
+    }
+}
