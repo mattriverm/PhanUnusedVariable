@@ -3,8 +3,7 @@ A plugin for etsy/phan that tries to detect unused variables in class methods.
 
 ## Overview
 This is plugin is in a very early WIP stage.
-Major todos
- - Add a "real" testsuite
+Major todos:
  - Refactor code duplication and unnecessary recursion
  - Find cases it does not catch
 
@@ -12,7 +11,7 @@ Major todos
 
 ```
 $ composer install
-$ cd test && ./../vendor/bin/phan -p
+$ cd tests && sh test.sh
 ```
 
 Expected output is issues on variables $one to $nineteen and nothing else.
