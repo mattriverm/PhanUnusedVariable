@@ -246,7 +246,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
         }
 
         // If this is a reference variable
-        if ("AST_ASSIGN_REF" === \ast\get_kind_name($node->kind)) {
+        if (\ast\AST_ASSIGN_REF === $node->kind) {
             $this->parseExpr($this->references, $node, $instructionCount);
             if (isset($node->children['var']->children['name']) && !$loopFlag) {
                 $name = $node->children['var']->children['name'];
@@ -270,7 +270,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                     'used' => $used
                 ];
 
-                if ("AST_VAR" === \ast\get_kind_name($node->children['expr']->kind)) {
+                if (\ast\AST_VAR === $node->children['expr']->kind) {
                     $this->reverse_references[$node->children['expr']->children['name']] = $name;
                 }
 
@@ -298,7 +298,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                 continue;
             }
 
-            if ("AST_STMT_LIST" === \ast\get_kind_name($statement->kind)) {
+            if (\ast\AST_STMT_LIST === $statement->kind) {
                 $this->parseStmts($assignments, $statement, $instructionCount);
                 return;
             }
@@ -340,7 +340,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
             
             foreach ($statement->children as $name => $subStmt) {
                 if ($subStmt instanceof Node) {
-                    if ("AST_STMT_LIST" === \ast\get_kind_name($subStmt->kind)) {
+                    if (\ast\AST_STMT_LIST === $subStmt->kind) {
                         $this->parseStmts($assignments, $subStmt, $instructionCount);
                     }
                 
