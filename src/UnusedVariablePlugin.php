@@ -156,8 +156,20 @@ class UnusedVariableVisitor extends AnalysisVisitor {
         }
     }
 
-    private function tryVarUse(&$assignments, $node, $instructionCount)
-    {
+    /**
+     * Recording the use of a variable means we just remove it from
+     * our list of assignments
+     *
+     * @param array $assignments
+     * @param Node|mixed $node
+     * @param int $instructionCount
+     * @return void
+     */
+    private function tryVarUse(
+        array &$assignments,
+        $node,
+        int $instructionCount
+    ) {
         if (!$node instanceof Node) {
             return;
         }
@@ -166,11 +178,12 @@ class UnusedVariableVisitor extends AnalysisVisitor {
             return;
         }
 
-        if (!isset($assignments[$node->children['name']])) {
+        $name = $node->children['name'];
+
+        if (!isset($assignments[$name])) {
             return;
         }
 
-        $name = $node->children['name'];
         if ($instructionCount > $assignments[$name]['key']) {
             unset($assignments[$name]);
         
@@ -180,6 +193,30 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                     $assignments[$this->reverse_references[$name]]
                 );
             }
+        }
+    }
+
+    /**
+     * Clear an assignment without checking instructioncount
+     *
+     * @param array $assignments
+     * @param Node|mixed $node
+     * @return void
+     */
+    private function tryVarUseUnchecked(
+        array &$assignments,
+        $node
+    ) {
+        if (!$node instanceof Node) {
+            return;
+        }
+        if (!isset($node->children['name'])) {
+            return;
+        }
+        $name = $node->children['name'];
+
+        if (array_key_exists($name, $assignments)) {
+            unset($assignments[$name]);
         }
     }
 
@@ -256,7 +293,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                 $used = false;
                 $param = false;
 
-                if (in_array($name, array_keys($this->references))) {
+                if (array_key_exists($name, $this->references)) {
                     $ref = $this->references[$name]['reference'];
                     $used = true;
                     $param = $this->references[$name]['param'];
@@ -343,8 +380,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                     if (\ast\AST_STMT_LIST === $subStmt->kind) {
                         $this->parseStmts($assignments, $subStmt, $instructionCount);
                     }
-                
-                    
+
                     if (isset($subStmt->children['name'])) {
                         $this->tryVarUse($assignments, $subStmt, $instructionCount);
                     } else {
@@ -354,15 +390,8 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                         $this->parseCond($assignments, $subStmt, $instructionCount);
                         $this->parseStmts($assignments, $subStmt, $instructionCount);
 
-                        
                         foreach ($subStmt->children as $argKey => $argParam) {
-                            if ($argParam instanceof Node) {
-                                if (isset($argParam->children['name'])) {
-                                    if (in_array($argParam->children['name'], array_keys($assignments))) {
-                                        unset($assignments[$argParam->children['name']]);
-                                    }
-                                }
-                            }
+                            $this->tryVarUseUnchecked($assignments, $argParam, $instructionCount);
                         }
                     }
                 } 
@@ -461,7 +490,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                 } else {
                     // If there is a reverse pointer to this var,
                     // we need to check if that is unused
-                    if (in_array($param, array_keys($this->reverse_references))) {
+                    if (array_key_exists($param, $this->reverse_references)) {
                         $pointer = $this->reverse_references[$param];
                         if (isset($assignments[$param])) {
                             $this->plugin->emitIssue(
