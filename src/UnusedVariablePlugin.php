@@ -14,6 +14,10 @@ use Phan\PluginV2\PluginAwareAnalysisVisitor;
 use ast\Node;
 use ast\Node\Decl;
 
+// By default, don't warn about parameters beginning with "$unused"
+// or about the variable $_
+const WHITELISTED_UNUSED_PARAM_NAME = '/^(_$|unused)/i';
+
 /**
  * This file checks for unused variables in
  * the global scope or function bodies.
@@ -532,13 +536,15 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                     }
 
                     if ($shouldWarn) {
-                        $this->emitPluginIssue(
-                            $this->code_base,
-                            clone($this->context)->withLineNumberStart($data['line']),
-                            'PhanPluginUnusedMethodArgument',
-                            'Parameter is never used: ${PARAMETER}',
-                            [$param]
-                        );
+                        if ($this->shouldWarnAboutParameter($param, $node)) {
+                            $this->emitPluginIssue(
+                                $this->code_base,
+                                clone($this->context)->withLineNumberStart($data['line']),
+                                'PhanPluginUnusedMethodArgument',
+                                'Parameter is never used: ${PARAMETER}',
+                                [$param]
+                            );
+                        }
                     }
                 } else {
                     // If there is a reverse pointer to this var,
@@ -577,6 +583,27 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                 }
             }
         }
+    }
+
+    private function shouldWarnAboutParameter(string $param, Decl $decl) : bool
+    {
+        // Don't warn about $_ or $unusedVariable or $unused_variable
+        if (preg_match(WHITELISTED_UNUSED_PARAM_NAME, $param) > 0) {
+            return false;
+        }
+        $docComment = $decl->docComment ?? '';
+        if (!$docComment) {
+            return true;
+        }
+        // If there is a line of the form "* @param [T] $myUnusedVar [description] @phan-unused-param [rest of description]" anywhere in the doc comment,
+        // then don't warn about the parameter being unused.
+        if (strpos($docComment, '@phan-unused-param') === false) {
+            return true;
+        }
+        if (preg_match('/@param[^$]*\$' . preg_quote($param, '/') . '\b.*@phan-unused-param\b/') > 0) {
+            return false;
+        }
+        return true;
     }
 }
 
