@@ -295,10 +295,20 @@ final class UnusedVariableReferenceAnnotatorVisitor extends PluginAwareAnalysisV
      * This is called after all of the arguments from calls made by this function
      * have been found to be references or non-references.
      * @return void
+     * @override
      */
     public function visitMethod(Decl $node) {
 		return (new UnusedVariableVisitor($this->code_base, $this->context))->visitMethod($node);
+    }
 
+    /**
+     * This is called after all of the arguments from calls made by this function
+     * have been found to be references or non-references.
+     * @return void
+     * @override
+     */
+    public function visitFuncDecl(Decl $node) {
+		return (new UnusedVariableVisitor($this->code_base, $this->context))->visitFuncDecl($node);
     }
 }
 
@@ -429,10 +439,10 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         if (!$node instanceof Node) {
             return;
         }
-        if (!isset($node->children['name'])) {
+        $name = $node->children['name'] ?? null;
+        if (!is_string($name)) {
             return;
         }
-        $name = $node->children['name'];
 
         if (array_key_exists($name, $assignments)) {
             unset($assignments[$name]);
@@ -474,14 +484,25 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         if (\ast\AST_ASSIGN === $node->kind || \ast\AST_ASSIGN_OP === $node->kind) {
             $this->parseExpr($assignments, $node, $instructionCount);
 
-            if ($node->children['var']->kind === \ast\AST_LIST) {
-                foreach ($node->children['var']->children as $ast_var) {
+            $var_node = $node->children['var'];
+            if ($var_node->kind === \ast\AST_ARRAY) {
+                foreach ($var_node->children as $elem_node) {
+                    assert($elem_node->kind === \ast\AST_ARRAY_ELEM);
+                    $var_node = $elem_node->children['value'];
+                    if ($var_node->kind !== \ast\AST_VAR) {
+                        continue;
+                    }
+                    $var_name = $var_node->children['name'];
+                    if (!is_string($var_name) || !$var_name) {
+                        // e.g. list(${0}) = $v, list($$var) = $v
+                        continue;
+                    }
                     $instructionCount++;
                     $this->assignSingle(
                         $assignments,
                         $node,
                         $instructionCount,
-                        $ast_var->children['name']
+                        $var_node->children['name']
                     );
                 }
                 return true;
@@ -660,7 +681,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
      *
      * @return void
      */
-    public function visitMethod(ast\Node\Decl $node)
+    public function visitMethod(Decl $node)
     {
         // ast kinds
         // https://github.com/nikic/php-ast/blob/master/ast_data.c
