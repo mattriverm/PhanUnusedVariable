@@ -1,47 +1,54 @@
 <?php declare(strict_types=1);
 
 use Phan\AST\AnalysisVisitor;
+use Phan\AST\ContextNode;
 use Phan\CodeBase;
+use Phan\Analysis\BlockExitStatusChecker;
+use Phan\Exception\CodeBaseException;
 use Phan\Language\Context;
-use Phan\Language\Element\Clazz;
-use Phan\Language\Element\Func;
-use Phan\Language\Element\Method;
-use Phan\Plugin;
-use Phan\Plugin\PluginImplementation;
+use Phan\Language\Element\FunctionInterface;
+use Phan\Language\UnionType;
+use Phan\PluginV2;
+use Phan\PluginV2\AnalyzeNodeCapability;
+use Phan\PluginV2\PluginAwareAnalysisVisitor;
 use ast\Node;
-use Phan\Debug;
+use ast\Node\Decl;
 
 /**
- * Unused variables
+ * This file checks for unused variables in
+ * the global scope or function bodies.
+ *
+ * This depends on PluginV2, which was added in Phan 0.9.3/0.8.5.
+ * It also requires a version of Phan using AST version 40.
+ *
+ * It hooks into one event:
+ *
+ * - getAnalyzeNodeVisitorClassName
+ *   This method returns a class that is called on every AST node from every
+ *   file being analyzed
+ *
+ * A plugin file must
+ *
+ * - Contain a class that inherits from \Phan\Plugin
+ *
+ * - End by returning an instance of that class.
+ *
+ * It is assumed without being checked that plugins aren't
+ * mangling state within the passed code base or context.
+ *
+ * Note: When adding new plugins,
+ * add them to the corresponding section of README.md
  */
-class UnusedVariablePlugin extends PluginImplementation {
+class UnusedVariablePlugin extends PluginV2
+    implements AnalyzeNodeCapability {
 
     /**
-     * @param CodeBase $code_base
-     * The code base in which the node exists
-     *
-     * @param Context $context
-     * The context in which the node exits. This is
-     * the context inside the given node rather than
-     * the context outside of the given node
-     *
-     * @param Node $node
-     * The php-ast Node being analyzed.
-     *
-     * @param Node $node
-     * The parent node of the given node (if one exists).
-     *
-     * @return void
+     * @return string - The name of the visitor that will be called (formerly analyzeNode)
+     * @override
      */
-    public function analyzeNode(
-        CodeBase $code_base,
-        Context $context,
-        Node $node,
-        Node $parent_node = null
-    ) {
-        (new UnusedVariableVisitor($code_base, $context, $this))(
-            $node
-        );
+    public static function getAnalyzeNodeVisitorClassName() : string
+    {
+        return UnusedVariableReferenceAnnotatorVisitor::class;
     }
 }
 
@@ -52,19 +59,50 @@ class UnusedVariablePlugin extends PluginImplementation {
  * Visitors such as this are useful for defining lots of different
  * checks on a node based on its kind.
  */
-class UnusedVariableVisitor extends AnalysisVisitor {
+final class UnusedVariableReferenceAnnotatorVisitor extends PluginAwareAnalysisVisitor {
+    // A plugin's visitors should NOT implement visit(), unless they need to.
 
-    /** @var Plugin */
-    private $plugin;
-
-    /** @var array */
-    protected $assignments = [];
+    // Note: In the future, it's planned to have another pass during the main analysis of this function
+    // so that this plugin add information about references
+    // to improve the unused variable checks.
+    //
+    // See \Phan\Language\Element\Parameter->getReferenceType() - it can return REFERENCE_WRITE_ONLY
+    // (E.g. preg_match('/a/', 'a value', $matches) is not a *usage* of $matches, it is a definition)
+    //
+    // In some edge cases, this plugin should depend on the Context to check if $myClassInstance->myMethod($var) is a usage of $var or a possible definition of $var
 
     /**
-     * Instruction count
-     * @var int
+     * This will be called after all of the arguments from calls made by this function
+     * have been found to be references or non-references.
+     * @return void
+     * @override
      */
-    protected $instruction_count = 0;
+    public function visitMethod(Decl $node) {
+         return (new UnusedVariableVisitor($this->code_base, $this->context))->visitMethod($node);
+    }
+
+    /**
+     * This will be called after all of the arguments from calls made by this function
+     * have been found to be references or non-references.
+     * @return void
+     * @override
+     */
+    public function visitFuncDecl(Decl $node) {
+         return (new UnusedVariableVisitor($this->code_base, $this->context))->visitFuncDecl($node);
+    }
+
+    /**
+     * This will be called after all of the arguments from calls made by this function
+     * have been found to be references or non-references.
+     * @return void
+     * @override
+     */
+    public function visitClosure(Decl $node) {
+         return (new UnusedVariableVisitor($this->code_base, $this->context))->visitClosure($node);
+    }
+}
+
+class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
 
     /** @var array */
     protected $references = [];
@@ -73,73 +111,49 @@ class UnusedVariableVisitor extends AnalysisVisitor {
     protected $reverse_references = [];
 
 
-    public function __construct(
-        CodeBase $code_base,
-        Context $context,
-        Plugin $plugin
-    ) {
-        // After constructing on parent, `$code_base` and
-        // `$context` will be available as protected properties
-        // `$this->code_base` and `$this->context`.
-        parent::__construct($code_base, $context);
-
-        // We take the plugin so that we can call
-        // `$this->plugin->emitIssue(...)` on it to emit issues
-        // to the user.
-        $this->plugin = $plugin;
-    }
-
-    /**
-     * Default visitor that does nothing
-     *
-     * @param Node $node
-     * A node to analyze
-     *
-     * @return void
-     */
-    public function visit(Node $node)
-    {
-    }
-
     /**
      * Expressions might be recursive
      */
-    private function parseExpr(&$assignments, $statement, &$instructionCount)
+    private function parseExpr(array &$assignments, $statement, int &$instructionCount)
     {
+        if (!($statement instanceof Node)) {
+            return;
+        }
         if (isset($statement->children['expr']) && $statement->children['expr'] instanceof Node) {
             $instructionCount++;
             $this->tryVarUse($assignments, $statement->children['expr'], $instructionCount);
-            
+
             foreach ($statement->children['expr']->children as $exChild) {
                 $instructionCount++;
-                
-                $this->tryVarUse($assignments, $exChild, $instructionCount);
-                $this->recurseToFindVarUse($assignments, $exChild, $instructionCount);
-            }
-        }
-    }
 
-    private function recurseToFindVarUse(&$assignments, $statement, &$instructionCount)
-    {
-        if ($statement instanceof Node) {
-            foreach ($statement->children as $key => $subStmt) {
-                if ($subStmt instanceof Node) {
-                    $this->tryVarUse($assignments, $subStmt, $instructionCount);
-                    $this->recurseToFindVarUse($assignments, $subStmt, $instructionCount);
+                if ($exChild instanceof Node) {
+                    $this->tryVarUse($assignments, $exChild, $instructionCount);
+                    $this->recurseToFindVarUse($assignments, $exChild, $instructionCount);
                 }
             }
         }
     }
 
-    private function parseCond(&$assignments, $node, &$instructionCount)
+    private function recurseToFindVarUse(array &$assignments, Node $statement, int &$instructionCount)
+    {
+        foreach ($statement->children as $subStmt) {
+            if ($subStmt instanceof Node) {
+                $this->tryVarUse($assignments, $subStmt, $instructionCount);
+                $this->recurseToFindVarUse($assignments, $subStmt, $instructionCount);
+            }
+        }
+    }
+
+    private function parseCond(array &$assignments, Node $node, int &$instructionCount)
     {
         if (!isset($node->children['cond']) ||  !($node->children['cond'] instanceof Node)) {
             return;
         }
-        
+
         $instructionCount++;
         foreach ($node->children['cond'] as $cond) {
             if (is_array($cond)) {
+                // TODO: Use node kind instead.
                 foreach ($cond as $key => $condNode) {
                     if ($key === 'expr') {
                         $this->parseExpr($assignments, $condNode, $instructionCount);
@@ -173,7 +187,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
         if (!$node instanceof Node) {
             return;
         }
-        
+
         if (\ast\AST_VAR !== $node->kind) {
             return;
         }
@@ -186,7 +200,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
 
         if ($instructionCount > $assignments[$name]['key']) {
             unset($assignments[$name]);
-        
+
             // Okay, is it a reference to something?
             if (isset($this->reverse_references[$name])) {
                 unset(
@@ -210,17 +224,15 @@ class UnusedVariableVisitor extends AnalysisVisitor {
         if (!$node instanceof Node) {
             return;
         }
-        if (!isset($node->children['name'])) {
+        $name = $node->children['name'] ?? null;
+        if (!is_string($name)) {
             return;
         }
-        $name = $node->children['name'];
 
-        if (array_key_exists($name, $assignments)) {
-            unset($assignments[$name]);
-        }
+        unset($assignments[$name]);
     }
 
-    private function assignSingle(&$assignments, $node, $instructionCount, $name)
+    private function assignSingle(array &$assignments, Node $node, int $instructionCount, string $name)
     {
         $ref = false;
         $used = false;
@@ -255,14 +267,25 @@ class UnusedVariableVisitor extends AnalysisVisitor {
         if (\ast\AST_ASSIGN === $node->kind || \ast\AST_ASSIGN_OP === $node->kind) {
             $this->parseExpr($assignments, $node, $instructionCount);
 
-            if ($node->children['var']->kind === \ast\AST_LIST) {
-                foreach ($node->children['var']->children as $ast_var) {
+            $var_node = $node->children['var'];
+            if ($var_node->kind === \ast\AST_ARRAY) {
+                foreach ($var_node->children as $elem_node) {
+                    assert($elem_node->kind === \ast\AST_ARRAY_ELEM);
+                    $var_node = $elem_node->children['value'];
+                    if ($var_node->kind !== \ast\AST_VAR) {
+                        continue;
+                    }
+                    $var_name = $var_node->children['name'];
+                    if (!is_string($var_name) || !$var_name) {
+                        // e.g. list(${0}) = $v, list($$var) = $v
+                        continue;
+                    }
                     $instructionCount++;
                     $this->assignSingle(
                         $assignments,
                         $node,
                         $instructionCount,
-                        $ast_var->children['name']
+                        $var_node->children['name']
                     );
                 }
                 return true;
@@ -318,17 +341,24 @@ class UnusedVariableVisitor extends AnalysisVisitor {
         return false;
     }
 
+    const LOOPS_SET = [
+        \ast\AST_WHILE => true,
+        \ast\AST_FOREACH => true,
+        \ast\AST_FOR => true,
+        \ast\AST_DO_WHILE => true
+    ];
+
     private function parseStmts(
         array &$assignments,
         Node $node,
         int &$instructionCount,
         bool $loopFlag = false
     ) {
-        foreach ($node->children as $stmtKey => $statement) {
-            if (!$statement instanceof Node) {
+        foreach ($node->children as $statement) {
+            if (!($statement instanceof Node)) {
                 continue;
             }
-            
+
             $instructionCount++;
 
             if ($this->assign($assignments, $statement, $instructionCount, $loopFlag)) {
@@ -340,16 +370,8 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                 return;
             }
 
-            // Loops are a bit trickier
-            $loops = [
-                \ast\AST_WHILE,
-                \ast\AST_FOREACH,
-                \ast\AST_FOR,
-                \ast\AST_DO_WHILE
-            ];
-
-            // Reset the instruction count and then run the loop again 
-            if (in_array($statement->kind, $loops)) {
+            // Reset the instruction count and then run the loop again
+            if (array_key_exists($statement->kind, self::LOOPS_SET)) {
                 // Parse the value and keep track of it
                 if (\ast\AST_FOREACH === $statement->kind) {
                     if (\ast\AST_REF === $statement->children['value']->kind ?? 0) {
@@ -371,10 +393,10 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                 // Now we know if there are dangling assignments
                 $shadowCount = 0;
                 $this->parseStmts($shadowAssignments, $statement->children['stmts'], $shadowCount, true);
-                $assignments = $shadowAssignments; 
+                $assignments = $shadowAssignments;
                 continue;
             }
-            
+
             foreach ($statement->children as $name => $subStmt) {
                 if ($subStmt instanceof Node) {
                     if (\ast\AST_STMT_LIST === $subStmt->kind) {
@@ -385,77 +407,109 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                         $this->tryVarUse($assignments, $subStmt, $instructionCount);
                     } else {
                         $instructionCount++;
-                        
+
                         // Else control structure or other scope?
                         $this->parseCond($assignments, $subStmt, $instructionCount);
                         $this->parseStmts($assignments, $subStmt, $instructionCount);
 
                         foreach ($subStmt->children as $argKey => $argParam) {
-                            $this->tryVarUseUnchecked($assignments, $argParam, $instructionCount);
+                            $this->tryVarUseUnchecked($assignments, $argParam);
                         }
                     }
-                } 
+                }
             }
         }
     }
 
     /**
-     * 
+     * @return void
      */
-    private function addMethodParameters(&$assignments, $node)
+    private function addMethodParameters(&$assignments, Node $node)
     {
-        foreach ($node->children['params'] ?? [] as $parameter) {
-            if (!is_array($parameter)) {
+        foreach ($node->children['params']->children ?? [] as $p) {
+            if ($p->kind !== \ast\AST_PARAM) {
+                continue;
+            }
+            $name = $p->children['name'];
+            if (!is_string($name) || !$name) {
                 continue;
             }
 
-            foreach ($parameter as $p) {
-                if (!isset($p->children['name'])) {
-                    return;
-                }
-
-                // Reference?
-                if ("EXEC_EVAL" === Debug::astFlagDescription($p->flags ?? 0)) {
-                    $assignments[$p->children['name']] = [
-                        'line' => $node->lineno,
-                        'key' => 0,
-                        'param' => true,
-                        'reference' => true,
-                        'used' => false
-                    ];
-                } else {
-                    $assignments[$p->children['name']] = [
-                        'line' => $node->lineno,
-                        'key' => 0,
-                        'param' => true,
-                        'reference' => false,
-                        'used' => false
-                    ];
-                } 
-            }    
+            // Reference?
+            if (\ast\flags\EXEC_EVAL === $p->flags) {
+                $assignments[$p->children['name']] = [
+                    'line' => $node->lineno,
+                    'key' => 0,
+                    'param' => true,
+                    'reference' => true,
+                    'used' => false
+                ];
+            } else {
+                $assignments[$p->children['name']] = [
+                    'line' => $node->lineno,
+                    'key' => 0,
+                    'param' => true,
+                    'reference' => false,
+                    'used' => false
+                ];
+            }
         }
     }
 
     /**
-     * @param Node $node
+     * @param Decl $node
      * A node to analyze
      *
      * @return void
      */
-    public function visitMethod(ast\Node\Decl $node)
+    public function visitMethod(Decl $node)
     {
         // ast kinds
         // https://github.com/nikic/php-ast/blob/master/ast_data.c
+        $this->analyzeMethod($node);
+    }
 
-        // Ignore interfaces because variables are never used
-        if (\ast\flags\CLASS_INTERFACE === $this->context->getClassInScope($this->code_base)->getFlags()) {
-            return;
-        }
+    /**
+     * @param Decl $node
+     * A node to analyze
+     *
+     * @return void
+     */
+    public function visitClosure(Decl $node)
+    {
+        $this->analyzeMethod($node);
+    }
 
+    /**
+     * @param Decl $node
+     * A node to analyze
+     *
+     * @return void
+     */
+    public function visitFuncDecl(Decl $node)
+    {
+        $this->analyzeMethod($node);
+    }
+
+    /**
+     * @param Decl $node
+     * A node to analyze (AST_FUNC_DECL, AST_METHOD, or AST_CLOSURE)
+     *
+     * @return void
+     */
+    public function analyzeMethod(Decl $node)
+    {
         //Debug::printNode($node);
 
         // Collect all assignments
         $assignments = [];
+
+        $stmts_list = $node->children['stmts'] ?? null;
+        if ($stmts_list === null) {
+            // abstract method or method of interface, nothing to do.
+            return;
+        }
+        assert($stmts_list instanceof Node);
 
         // Add all the method params to check if they are used
         $this->addMethodParameters($assignments, $node);
@@ -463,9 +517,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
         // Instruction count
         $instructionCount = 0;
 
-        if (isset($node->children['stmts']) && ($node->children['stmts'] instanceof Node)) {
-            $this->parseStmts($assignments, $node->children['stmts'], $instructionCount);
-        }
+        $this->parseStmts($assignments, $stmts_list, $instructionCount);
 
         if (count($assignments) > 0) {
             foreach ($assignments as $param => $data) {
@@ -480,7 +532,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                     }
 
                     if ($shouldWarn) {
-                        $this->plugin->emitIssue(
+                        $this->emitPluginIssue(
                             $this->code_base,
                             $this->context,
                             'PhanPluginUnusedMethodArgument',
@@ -493,7 +545,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                     if (array_key_exists($param, $this->reverse_references)) {
                         $pointer = $this->reverse_references[$param];
                         if (isset($assignments[$param])) {
-                            $this->plugin->emitIssue(
+                            $this->emitPluginIssue(
                                 $this->code_base,
                                 $this->context,
                                 'PhanPluginUnnecessaryReference',
@@ -511,7 +563,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                         }
 
                         if ($shouldWarn) {
-                            $this->plugin->emitIssue(
+                            $this->emitPluginIssue(
                                 $this->code_base,
                                 $this->context,
                                 'PhanPluginUnusedVariable',
@@ -522,7 +574,6 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                 }
             }
         }
-        
     }
 }
 

@@ -10,6 +10,6 @@
         }
     ],
     "require-dev": {
-        "etsy/phan": "~0.8"
+        "etsy/phan": "~0.9.3 || ~0.8.5"
     }
 }
