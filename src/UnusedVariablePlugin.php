@@ -600,7 +600,8 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         if (strpos($docComment, '@phan-unused-param') === false) {
             return true;
         }
-        if (preg_match('/@param[^$]*\$' . preg_quote($param, '/') . '\b.*@phan-unused-param\b/') > 0) {
+        $regex = '/@param[^$]*\$' . preg_quote($param, '/') . '\b.*@phan-unused-param\b/';
+        if (preg_match($regex, $docComment) > 0) {
             return false;
         }
         return true;

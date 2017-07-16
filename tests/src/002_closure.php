@@ -26,3 +26,20 @@ $c = function($password, $hash, $three) {
     return ($shaHash === $hash);
 };
 $c('x', 'badhash', 'threeVal');
+
+// This should not fail on $unusedVar or $_
+$d = function($password, $_, $hash, $unusedVar) {
+    $shaHash = sha1($password);
+    return ($shaHash === $hash);
+};
+$d('x', null, 'badhash', 'unused');
+
+/**
+ * This should not fail on $extra
+ * @param string $extra @phan-unused-param
+ */
+$e = function($password, $hash, $extra) {
+    $shaHash = sha1($password);
+    return ($shaHash === $hash);
+};
+$e('x', 'badhash', 'unused');
