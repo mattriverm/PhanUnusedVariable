@@ -534,9 +534,10 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                     if ($shouldWarn) {
                         $this->emitPluginIssue(
                             $this->code_base,
-                            $this->context,
+                            clone($this->context)->withLineNumberStart($data['line']),
                             'PhanPluginUnusedMethodArgument',
-                            "Parameter is never used: $".$param."."
+                            'Parameter is never used: ${PARAMETER}',
+                            [$param]
                         );
                     }
                 } else {
@@ -547,9 +548,10 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                         if (isset($assignments[$param])) {
                             $this->emitPluginIssue(
                                 $this->code_base,
-                                $this->context,
+                                clone($this->context)->withLineNumberStart($data['line']),
                                 'PhanPluginUnnecessaryReference',
-                                "$".$pointer." (assigned on line ".$data['line'].") is a reference to $".$param.", but $".$param." is never used."
+                                '${VARIABLE} is a reference to ${PARAMETER}, but ${PARAMETER} is never used',
+                                [$pointer, $param, $param]
                             );
                         }
                     } else {
@@ -565,9 +567,10 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                         if ($shouldWarn) {
                             $this->emitPluginIssue(
                                 $this->code_base,
-                                $this->context,
+                                clone($this->context)->withLineNumberStart($data['line']),
                                 'PhanPluginUnusedVariable',
-                                "Variable is never used: $".$param." assigned on line ".$data['line']."."
+                                'Variable is never used: ${VARIABLE}',
+                                [$param]
                             );
                         }
                     }
