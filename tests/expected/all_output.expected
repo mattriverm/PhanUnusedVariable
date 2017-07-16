@@ -1,24 +1,24 @@
-src/000_all.php:4 PhanPluginUnusedVariable Variable is never used: $one assigned on line 5.
-src/000_all.php:4 PhanPluginUnusedVariable Variable is never used: $two assigned on line 6.
-src/000_all.php:27 PhanPluginUnusedMethodArgument Parameter is never used: $three.
-src/000_all.php:49 PhanPluginUnusedVariable Variable is never used: $four assigned on line 54.
-src/000_all.php:63 PhanPluginUnusedVariable Variable is never used: $five assigned on line 68.
-src/000_all.php:117 PhanPluginUnusedVariable Variable is never used: $six assigned on line 124.
-src/000_all.php:149 PhanPluginUnusedVariable Variable is never used: $seven assigned on line 156.
-src/000_all.php:164 PhanPluginUnusedVariable Variable is never used: $eight assigned on line 167.
-src/000_all.php:198 PhanPluginUnusedVariable Variable is never used: $nine assigned on line 207.
-src/000_all.php:245 PhanPluginUnusedVariable Variable is never used: $ten assigned on line 251.
-src/000_all.php:267 PhanPluginUnusedVariable Variable is never used: $eleven assigned on line 273.
-src/000_all.php:289 PhanPluginUnusedVariable Variable is never used: $twelwe assigned on line 295.
-src/000_all.php:311 PhanPluginUnusedVariable Variable is never used: $thirteen assigned on line 318.
-src/000_all.php:415 PhanPluginUnusedVariable Variable is never used: $fourteen assigned on line 417.
-src/000_all.php:438 PhanPluginUnusedMethodArgument Parameter is never used: $fifteen.
-src/000_all.php:457 PhanPluginUnnecessaryReference $sixteen (assigned on line 459) is a reference to $seventeen, but $seventeen is never used.
-src/000_all.php:457 PhanPluginUnusedVariable Variable is never used: $sixteen assigned on line 461.
-src/000_all.php:493 PhanPluginUnnecessaryReference $eighteen (assigned on line 495) is a reference to $nineteen, but $nineteen is never used.
-src/001_func.php:6 PhanPluginUnusedVariable Variable is never used: $one assigned on line 7.
-src/001_func.php:6 PhanPluginUnusedVariable Variable is never used: $two assigned on line 8.
-src/001_func.php:25 PhanPluginUnusedMethodArgument Parameter is never used: $three.
-src/002_closure.php:6 PhanPluginUnusedVariable Variable is never used: $one assigned on line 7.
-src/002_closure.php:6 PhanPluginUnusedVariable Variable is never used: $two assigned on line 8.
-src/002_closure.php:24 PhanPluginUnusedMethodArgument Parameter is never used: $three.
+src/000_all.php:5 PhanPluginUnusedVariable Variable is never used: $one
+src/000_all.php:6 PhanPluginUnusedVariable Variable is never used: $two
+src/000_all.php:27 PhanPluginUnusedMethodArgument Parameter is never used: $three
+src/000_all.php:54 PhanPluginUnusedVariable Variable is never used: $four
+src/000_all.php:68 PhanPluginUnusedVariable Variable is never used: $five
+src/000_all.php:124 PhanPluginUnusedVariable Variable is never used: $six
+src/000_all.php:156 PhanPluginUnusedVariable Variable is never used: $seven
+src/000_all.php:167 PhanPluginUnusedVariable Variable is never used: $eight
+src/000_all.php:207 PhanPluginUnusedVariable Variable is never used: $nine
+src/000_all.php:251 PhanPluginUnusedVariable Variable is never used: $ten
+src/000_all.php:273 PhanPluginUnusedVariable Variable is never used: $eleven
+src/000_all.php:295 PhanPluginUnusedVariable Variable is never used: $twelwe
+src/000_all.php:318 PhanPluginUnusedVariable Variable is never used: $thirteen
+src/000_all.php:417 PhanPluginUnusedVariable Variable is never used: $fourteen
+src/000_all.php:438 PhanPluginUnusedMethodArgument Parameter is never used: $fifteen
+src/000_all.php:459 PhanPluginUnnecessaryReference $sixteen is a reference to $seventeen, but $seventeen is never used
+src/000_all.php:461 PhanPluginUnusedVariable Variable is never used: $sixteen
+src/000_all.php:495 PhanPluginUnnecessaryReference $eighteen is a reference to $nineteen, but $nineteen is never used
+src/001_func.php:7 PhanPluginUnusedVariable Variable is never used: $one
+src/001_func.php:8 PhanPluginUnusedVariable Variable is never used: $two
+src/001_func.php:25 PhanPluginUnusedMethodArgument Parameter is never used: $three
+src/002_closure.php:7 PhanPluginUnusedVariable Variable is never used: $one
+src/002_closure.php:8 PhanPluginUnusedVariable Variable is never used: $two
+src/002_closure.php:24 PhanPluginUnusedMethodArgument Parameter is never used: $three
