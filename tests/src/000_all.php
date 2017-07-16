@@ -39,7 +39,7 @@ class testAssignedInControlStructure {
         if (true == 1) {
             $res = $t->sha1_verify($password, $hash);
         }
-        
+
         return ($res === $hash);
     }
 }
@@ -53,7 +53,7 @@ class testUnusedInControlStructure {
         if (true == 1) {
             $four = $t->sha1_verify($password, $hash);
         }
-        
+
         return ($password === $hash);
     }
 }
@@ -67,7 +67,7 @@ class testTrackAssignInControlStructure {
         if (true == 1) {
             $five = $t->sha1_verify($password, $hash);
         }
-        
+
         return ($password === $hash);
     }
 }
@@ -188,7 +188,7 @@ class testUseInMethodCall
             [$id]
         );
 
-        return $statement; 
+        return $statement;
     }
 }
 
@@ -199,7 +199,7 @@ class testForeachElseIf
     {
         $a = ['a', 'b', 'c'];
         $nine = ['a', 'b', 'c'];
-        
+
         foreach ($a as $b) {
             if (count($nine) == 1) {
                 $nine = array_shift($nine);
@@ -338,7 +338,7 @@ class testAssignmentInWhileCondition
         while ($row = $statement->fetch()) {
             $collection[] = $row;
         }
-        
+
         return $collection;
     }
 }
@@ -523,7 +523,7 @@ class testReferences
     public static function new(array $config)
     {
         $ret = new static;
-        
+
         // Loop sections and set false to everything
         foreach ($config as $secName => &$section) {
             foreach ($section['fields'] as &$confField) {
@@ -536,7 +536,7 @@ class testReferences
     }
 }
 
-// @todo 
+// @todo
 // class testIncremenetButNeverReturnedOrUsed {
 //     public function pub()
 //     {

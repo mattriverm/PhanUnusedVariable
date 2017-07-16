@@ -16,3 +16,9 @@ src/000_all.php:438 PhanPluginUnusedMethodArgument Parameter is never used: $fif
 src/000_all.php:457 PhanPluginUnnecessaryReference $sixteen (assigned on line 459) is a reference to $seventeen, but $seventeen is never used.
 src/000_all.php:457 PhanPluginUnusedVariable Variable is never used: $sixteen assigned on line 461.
 src/000_all.php:493 PhanPluginUnnecessaryReference $eighteen (assigned on line 495) is a reference to $nineteen, but $nineteen is never used.
+src/001_func.php:6 PhanPluginUnusedVariable Variable is never used: $one assigned on line 7.
+src/001_func.php:6 PhanPluginUnusedVariable Variable is never used: $two assigned on line 8.
+src/001_func.php:25 PhanPluginUnusedMethodArgument Parameter is never used: $three.
+src/002_closure.php:6 PhanPluginUnusedVariable Variable is never used: $one assigned on line 7.
+src/002_closure.php:6 PhanPluginUnusedVariable Variable is never used: $two assigned on line 8.
+src/002_closure.php:24 PhanPluginUnusedMethodArgument Parameter is never used: $three.
