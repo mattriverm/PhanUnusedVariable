@@ -1,47 +1,69 @@
 <?php declare(strict_types=1);
+/**
+ * UnusedVariableVisitor is based on https://github.com/mattriverm/PhanUnusedVariable
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * When __invoke on this class is called with a node, a method
+ * will be dispatched based on the `kind` of the given node.
+ *
+ * Visitors such as this are useful for defining lots of different
+ * checks on a node based on its kind.
+ */
 
 use Phan\AST\AnalysisVisitor;
+use Phan\AST\ContextNode;
 use Phan\CodeBase;
+use Phan\Analysis\BlockExitStatusChecker;
+use Phan\Exception\CodeBaseException;
 use Phan\Language\Context;
-use Phan\Language\Element\Clazz;
-use Phan\Language\Element\Func;
-use Phan\Language\Element\Method;
-use Phan\Plugin;
-use Phan\Plugin\PluginImplementation;
+use Phan\Language\Element\FunctionInterface;
+use Phan\Language\UnionType;
+use Phan\PluginV2;
+use Phan\PluginV2\AnalyzeNodeCapability;
+use Phan\PluginV2\PluginAwareAnalysisVisitor;
 use ast\Node;
-use Phan\Debug;
+use ast\Node\Decl;
 
 /**
- * Unused variables
+ * This file checks for unused variables in
+ * the global scope or function bodies.
+ *
+ * As a side effect, it adds 'isRef' to \ast\Node->children in argument lists
+ * of function calls, method calls (instance/static), and calls to `new MyClass($x)`
+ *
+ * It hooks into one event:
+ *
+ * - getAnalyzeNodeVisitorClassName
+ *   This method returns a class that is called on every AST node from every
+ *   file being analyzed
+ *
+ * A plugin file must
+ *
+ * - Contain a class that inherits from \Phan\Plugin
+ *
+ * - End by returning an instance of that class.
+ *
+ * It is assumed without being checked that plugins aren't
+ * mangling state within the passed code base or context.
+ *
+ * Note: When adding new plugins,
+ * add them to the corresponding section of README.md
  */
-class UnusedVariablePlugin extends PluginImplementation {
+final class UnusedVariablePlugin extends PluginV2
+    implements AnalyzeNodeCapability {
 
     /**
-     * @param CodeBase $code_base
-     * The code base in which the node exists
-     *
-     * @param Context $context
-     * The context in which the node exits. This is
-     * the context inside the given node rather than
-     * the context outside of the given node
-     *
-     * @param Node $node
-     * The php-ast Node being analyzed.
-     *
-     * @param Node $node
-     * The parent node of the given node (if one exists).
-     *
-     * @return void
+     * @return string - The name of the visitor that will be called (formerly analyzeNode)
+     * @override
      */
-    public function analyzeNode(
-        CodeBase $code_base,
-        Context $context,
-        Node $node,
-        Node $parent_node = null
-    ) {
-        (new UnusedVariableVisitor($code_base, $context, $this))(
-            $node
-        );
+    public static function getAnalyzeNodeVisitorClassName() : string
+    {
+        return UnusedVariableReferenceAnnotatorVisitor::class;
     }
 }
 
@@ -52,10 +74,235 @@ class UnusedVariablePlugin extends PluginImplementation {
  * Visitors such as this are useful for defining lots of different
  * checks on a node based on its kind.
  */
-class UnusedVariableVisitor extends AnalysisVisitor {
+final class UnusedVariableReferenceAnnotatorVisitor extends PluginAwareAnalysisVisitor {
+    // A plugin's visitors should NOT implement visit(), unless they need to.
 
-    /** @var Plugin */
-    private $plugin;
+    // AST node types that would both can be references, and would affect analysis.
+    const POSSIBLE_REFERENCE_TYPE_SET = [
+        \ast\AST_VAR => true,
+        \ast\AST_DIM => true,
+        // \ast\AST_PROP => true,
+        // \ast\AST_STATIC_PROP => true,
+    ];
+
+    /**
+     * @param Node $node
+     * A node to analyze to record whether individual arguments are references.
+     *
+     * @return void
+     *
+     * @override
+     */
+    public function visitCall(Node $node)
+    {
+        $args = $node->children['args']->children;
+        if (count($args) === 0) {
+            return;
+        }
+        $unknown_argument_set = self::extractArgumentsToAnalyze($args);
+        if (count($unknown_argument_set) === 0) {
+            return;
+        }
+        $expression = $node->children['expr'];
+        try {
+            $function_list_generator = (new ContextNode(
+                $this->code_base,
+                $this->context,
+                $expression
+            ))->getFunctionFromNode();
+
+            foreach ($function_list_generator as $function) {
+                assert($function instanceof FunctionInterface);
+                // Check the call for parameter and argument types
+                $this->analyzeCallToMethodForReferences(
+                    $function,
+                    $unknown_argument_set
+                );
+            }
+        } catch (CodeBaseException $e) {
+            // ignore it.
+        }
+    }
+
+    /**
+     * @return void
+     *
+     * @override
+     */
+    public function visitNew(Node $node)
+    {
+        $args = $node->children['args']->children;
+        if (count($args) === 0) {
+            return;
+        }
+        $unknown_argument_set = self::extractArgumentsToAnalyze($args);
+        if (count($unknown_argument_set) === 0) {
+            return;
+        }
+        try {
+            $context_node = (new ContextNode(
+                $this->code_base,
+                $this->context,
+                $node
+            ));
+
+            $method = $context_node->getMethod(
+                '__construct',
+                false,
+                false
+            );
+            $this->analyzeCallToMethodForReferences(
+                $method,
+                $unknown_argument_set
+            );
+        } catch (\Exception $exception) {
+        }
+    }
+
+    /**
+     * @param Node $node
+     * A node to analyze to record whether individual arguments are references.
+     *
+     * @return void
+     *
+     * @override
+     */
+    public function visitStaticCall(Node $node)
+    {
+        // Get the name of the method being called
+        $method_name = $node->children['method'];
+
+        // Give up on things like Class::$var
+        if (!\is_string($method_name)) {
+            return;
+        }
+        $args = $node->children['args']->children;
+        if (count($args) === 0) {
+            return;
+        }
+        $unknown_argument_set = self::extractArgumentsToAnalyze($args);
+        if (count($unknown_argument_set) === 0) {
+            return;
+        }
+        // Get the name of the static class being referenced
+        $static_class = '';
+        if ($node->children['class']->kind == \ast\AST_NAME) {
+            $static_class = $node->children['class']->children['name'];
+        }
+
+        try {
+            $method = (new ContextNode(
+                $this->code_base,
+                $this->context,
+                $node
+            ))->getMethod($method_name, true, true);
+        } catch (Exception $e) {
+            return;  // ignore.
+        }
+
+        if ($method === null) {
+            return;
+        }
+
+        $this->analyzeCallToMethodForReferences($method, $unknown_argument_set);
+    }
+
+    /**
+     * @param Node $node
+     * A node to analyze to record whether individual arguments are references.
+     *
+     * @return void
+     *
+     * @override
+     */
+    public function visitMethodCall(Node $node)
+    {
+        $args = $node->children['args']->children;
+        if (count($args) === 0) {
+            return;
+        }
+        $unknown_argument_set = self::extractArgumentsToAnalyze($args);
+        if (count($unknown_argument_set) === 0) {
+            return;
+        }
+        $method_name = $node->children['method'];
+
+        if (!\is_string($method_name)) {
+            return;
+        }
+
+        try {
+            $method = (new ContextNode(
+                $this->code_base,
+                $this->context,
+                $node
+            ))->getMethod($method_name, false);
+        } catch (Exception $exception) {
+            return;
+        }
+
+        // Check the call for parameter and argument types
+        $this->analyzeCallToMethodForReferences(
+            $method,
+            $unknown_argument_set
+        );
+    }
+
+    /**
+     * @param Node[] $arg_list
+     * @return Node[] subset of those, preserving array indices.
+     */
+    private function extractArgumentsToAnalyze(array $arg_list) : array
+    {
+        $unknown_argument_set = [];
+        foreach ($arg_list as $i => $arg) {
+            if (!($arg instanceof Node)) {
+                continue;
+            }
+            if (!array_key_exists($arg->kind, self::POSSIBLE_REFERENCE_TYPE_SET)) {
+                continue;
+            }
+            if (isset($arg->children['isRef'])) {
+                continue;
+            }
+            $unknown_argument_set[$i] = $arg;
+            $arg->children['isRef'] = false;  // set it to true if any possible implementations are true.
+        }
+        return $unknown_argument_set;
+    }
+
+    /**
+     * @param Node[] $unknown_argument_set a subset of the parameters of the call.
+     * @return void
+     */
+    private function analyzeCallToMethodForReferences(
+        FunctionInterface $method,
+        array $unknown_argument_set
+    ) {
+        foreach ($unknown_argument_set as $i => $argument) {
+            assert($argument instanceof Node);
+            $parameter = $method->getParameterForCaller($i);
+            if (!$parameter) {
+                continue;
+            }
+            if ($parameter->isPassByReference()) {
+                $argument->children['isRef'] = true;
+            }
+        }
+    }
+
+    /**
+     * This is called after all of the arguments from calls made by this function
+     * have been found to be references or non-references.
+     * @return void
+     */
+    public function visitMethod(Decl $node) {
+		return (new UnusedVariableVisitor($this->code_base, $this->context))->visitMethod($node);
+
+    }
+}
+
+class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
 
     /** @var array */
     protected $assignments = [];
@@ -73,34 +320,6 @@ class UnusedVariableVisitor extends AnalysisVisitor {
     protected $reverse_references = [];
 
 
-    public function __construct(
-        CodeBase $code_base,
-        Context $context,
-        Plugin $plugin
-    ) {
-        // After constructing on parent, `$code_base` and
-        // `$context` will be available as protected properties
-        // `$this->code_base` and `$this->context`.
-        parent::__construct($code_base, $context);
-
-        // We take the plugin so that we can call
-        // `$this->plugin->emitIssue(...)` on it to emit issues
-        // to the user.
-        $this->plugin = $plugin;
-    }
-
-    /**
-     * Default visitor that does nothing
-     *
-     * @param Node $node
-     * A node to analyze
-     *
-     * @return void
-     */
-    public function visit(Node $node)
-    {
-    }
-
     /**
      * Expressions might be recursive
      */
@@ -109,10 +328,10 @@ class UnusedVariableVisitor extends AnalysisVisitor {
         if (isset($statement->children['expr']) && $statement->children['expr'] instanceof Node) {
             $instructionCount++;
             $this->tryVarUse($assignments, $statement->children['expr'], $instructionCount);
-            
+
             foreach ($statement->children['expr']->children as $exChild) {
                 $instructionCount++;
-                
+
                 $this->tryVarUse($assignments, $exChild, $instructionCount);
                 $this->recurseToFindVarUse($assignments, $exChild, $instructionCount);
             }
@@ -136,7 +355,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
         if (!isset($node->children['cond']) ||  !($node->children['cond'] instanceof Node)) {
             return;
         }
-        
+
         $instructionCount++;
         foreach ($node->children['cond'] as $cond) {
             if (is_array($cond)) {
@@ -173,7 +392,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
         if (!$node instanceof Node) {
             return;
         }
-        
+
         if (\ast\AST_VAR !== $node->kind) {
             return;
         }
@@ -186,7 +405,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
 
         if ($instructionCount > $assignments[$name]['key']) {
             unset($assignments[$name]);
-        
+
             // Okay, is it a reference to something?
             if (isset($this->reverse_references[$name])) {
                 unset(
@@ -318,17 +537,24 @@ class UnusedVariableVisitor extends AnalysisVisitor {
         return false;
     }
 
+	const LOOPS_SET = [
+		\ast\AST_WHILE => true,
+		\ast\AST_FOREACH => true,
+		\ast\AST_FOR => true,
+		\ast\AST_DO_WHILE => true
+	];
+
     private function parseStmts(
         array &$assignments,
         Node $node,
         int &$instructionCount,
         bool $loopFlag = false
     ) {
-        foreach ($node->children as $stmtKey => $statement) {
-            if (!$statement instanceof Node) {
+        foreach ($node->children as $statement) {
+            if (!($statement instanceof Node)) {
                 continue;
             }
-            
+
             $instructionCount++;
 
             if ($this->assign($assignments, $statement, $instructionCount, $loopFlag)) {
@@ -340,16 +566,8 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                 return;
             }
 
-            // Loops are a bit trickier
-            $loops = [
-                \ast\AST_WHILE,
-                \ast\AST_FOREACH,
-                \ast\AST_FOR,
-                \ast\AST_DO_WHILE
-            ];
-
-            // Reset the instruction count and then run the loop again 
-            if (in_array($statement->kind, $loops)) {
+            // Reset the instruction count and then run the loop again
+            if (array_key_exists($statement->kind, self::LOOPS_SET)) {
                 // Parse the value and keep track of it
                 if (\ast\AST_FOREACH === $statement->kind) {
                     if (\ast\AST_REF === $statement->children['value']->kind ?? 0) {
@@ -371,10 +589,10 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                 // Now we know if there are dangling assignments
                 $shadowCount = 0;
                 $this->parseStmts($shadowAssignments, $statement->children['stmts'], $shadowCount, true);
-                $assignments = $shadowAssignments; 
+                $assignments = $shadowAssignments;
                 continue;
             }
-            
+
             foreach ($statement->children as $name => $subStmt) {
                 if ($subStmt instanceof Node) {
                     if (\ast\AST_STMT_LIST === $subStmt->kind) {
@@ -385,7 +603,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                         $this->tryVarUse($assignments, $subStmt, $instructionCount);
                     } else {
                         $instructionCount++;
-                        
+
                         // Else control structure or other scope?
                         $this->parseCond($assignments, $subStmt, $instructionCount);
                         $this->parseStmts($assignments, $subStmt, $instructionCount);
@@ -394,15 +612,15 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                             $this->tryVarUseUnchecked($assignments, $argParam, $instructionCount);
                         }
                     }
-                } 
+                }
             }
         }
     }
 
     /**
-     * 
+     * @return void
      */
-    private function addMethodParameters(&$assignments, $node)
+    private function addMethodParameters(&$assignments, Node $node)
     {
         foreach ($node->children['params'] ?? [] as $parameter) {
             if (!is_array($parameter)) {
@@ -415,7 +633,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                 }
 
                 // Reference?
-                if ("EXEC_EVAL" === Debug::astFlagDescription($p->flags ?? 0)) {
+                if (\ast\flags\EXEC_EVAL === $p->flags) {
                     $assignments[$p->children['name']] = [
                         'line' => $node->lineno,
                         'key' => 0,
@@ -431,13 +649,13 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                         'reference' => false,
                         'used' => false
                     ];
-                } 
-            }    
+                }
+            }
         }
     }
 
     /**
-     * @param Node $node
+     * @param Decl $node
      * A node to analyze
      *
      * @return void
@@ -480,7 +698,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                     }
 
                     if ($shouldWarn) {
-                        $this->plugin->emitIssue(
+                        $this->emitPluginIssue(
                             $this->code_base,
                             $this->context,
                             'PhanPluginUnusedMethodArgument',
@@ -493,7 +711,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                     if (array_key_exists($param, $this->reverse_references)) {
                         $pointer = $this->reverse_references[$param];
                         if (isset($assignments[$param])) {
-                            $this->plugin->emitIssue(
+                            $this->emitPluginIssue(
                                 $this->code_base,
                                 $this->context,
                                 'PhanPluginUnnecessaryReference',
@@ -511,7 +729,7 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                         }
 
                         if ($shouldWarn) {
-                            $this->plugin->emitIssue(
+                            $this->emitPluginIssue(
                                 $this->code_base,
                                 $this->context,
                                 'PhanPluginUnusedVariable',
@@ -522,7 +740,6 @@ class UnusedVariableVisitor extends AnalysisVisitor {
                 }
             }
         }
-        
     }
 }
 
