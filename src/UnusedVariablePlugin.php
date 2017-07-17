@@ -197,6 +197,10 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         }
 
         $name = $node->children['name'];
+        // e.g. $$x, ${42}
+        if (!is_string($name) || !$name) {
+            return;
+        }
 
         if (!isset($assignments[$name])) {
             return;
@@ -274,6 +278,9 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             $var_node = $node->children['var'];
             if ($var_node->kind === \ast\AST_ARRAY) {
                 foreach ($var_node->children as $elem_node) {
+                    if ($elem_node === null) {
+                        continue;  // e.g. "list(, $x) = expr"
+                    }
                     assert($elem_node->kind === \ast\AST_ARRAY_ELEM);
                     $var_node = $elem_node->children['value'];
                     if ($var_node->kind !== \ast\AST_VAR) {
@@ -314,6 +321,9 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             $this->parseExpr($this->references, $node, $instructionCount);
             if (isset($node->children['var']->children['name']) && !$loopFlag) {
                 $name = $node->children['var']->children['name'];
+                if (!is_string($name) || !$name) {
+                    return false;
+                }
                 $instructionCount++;
                 // If this is a ref, mark it as used
                 $ref = false;
