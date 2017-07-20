@@ -84,128 +84,10 @@ return [
     // nodes.
     'should_visit_all_nodes' => true,
 
-    // Override if runkit.superglobal ini directive is used.
-    // See Phan\Config.
-    'runkit_superglobals' => [],
-
-    // Override to hardcode existence and types of (non-builtin) globals.
-    // Class names must be prefixed with '\\'.
-    'globals_type_map' => ['var' => 'string'],
-
     // The minimum severity level to report on. This can be
     // set to Issue::SEVERITY_LOW, Issue::SEVERITY_NORMAL or
     // Issue::SEVERITY_CRITICAL.
     'minimum_severity' => Issue::SEVERITY_LOW,
-
-    // Add any issue types (such as 'PhanUndeclaredMethod')
-    // here to inhibit them from being reported
-    'suppress_issue_types' => [
-        // 'PhanUndeclaredMethod',
-    ],
-
-    // If empty, no filter against issues types will be applied.
-    // If non-empty, only issues within the list will be emitted
-    // by Phan.
-    'whitelist_issue_types' => [
-        // 'PhanAccessMethodPrivate',
-        // 'PhanAccessMethodProtected',
-        // 'PhanAccessNonStaticToStatic',
-        // 'PhanAccessPropertyPrivate',
-        // 'PhanAccessPropertyProtected',
-        // 'PhanAccessSignatureMismatch',
-        // 'PhanAccessSignatureMismatchInternal',
-        // 'PhanAccessStaticToNonStatic',
-        // 'PhanCompatibleExpressionPHP7',
-        // 'PhanCompatiblePHP7',
-        // 'PhanContextNotObject',
-        // 'PhanDeprecatedClass',
-        // 'PhanDeprecatedFunction',
-        // 'PhanDeprecatedProperty',
-        // 'PhanEmptyFile',
-        // 'PhanNonClassMethodCall',
-        // 'PhanNoopArray',
-        // 'PhanNoopClosure',
-        // 'PhanNoopConstant',
-        // 'PhanNoopProperty',
-        // 'PhanNoopVariable',
-        // 'PhanParamRedefined',
-        // 'PhanParamReqAfterOpt',
-        // 'PhanParamSignatureMismatch',
-        // 'PhanParamSignatureMismatchInternal',
-        // 'PhanParamSpecial1',
-        // 'PhanParamSpecial2',
-        // 'PhanParamSpecial3',
-        // 'PhanParamSpecial4',
-        // 'PhanParamTooFew',
-        // 'PhanParamTooFewInternal',
-        // 'PhanParamTooMany',
-        // 'PhanParamTooManyInternal',
-        // 'PhanParamTypeMismatch',
-        // 'PhanParentlessClass',
-        // 'PhanRedefineClass',
-        // 'PhanRedefineClassInternal',
-        // 'PhanRedefineFunction',
-        // 'PhanRedefineFunctionInternal',
-        // 'PhanStaticCallToNonStatic',
-        // 'PhanSyntaxError',
-        // 'PhanTraitParentReference',
-        // 'PhanTypeArrayOperator',
-        // 'PhanTypeArraySuspicious',
-        // 'PhanTypeComparisonFromArray',
-        // 'PhanTypeComparisonToArray',
-        // 'PhanTypeConversionFromArray',
-        // 'PhanTypeInstantiateAbstract',
-        // 'PhanTypeInstantiateInterface',
-        // 'PhanTypeInvalidLeftOperand',
-        // 'PhanTypeInvalidRightOperand',
-        // 'PhanTypeMismatchArgument',
-        // 'PhanTypeMismatchArgumentInternal',
-        // 'PhanTypeMismatchDefault',
-        // 'PhanTypeMismatchForeach',
-        // 'PhanTypeMismatchProperty',
-        // 'PhanTypeMismatchReturn',
-        // 'PhanTypeMissingReturn',
-        // 'PhanTypeNonVarPassByRef',
-        // 'PhanTypeParentConstructorCalled',
-        // 'PhanTypeVoidAssignment',
-        // 'PhanUnanalyzable',
-        // 'PhanUndeclaredClass',
-        // 'PhanUndeclaredClassCatch',
-        // 'PhanUndeclaredClassConstant',
-        // 'PhanUndeclaredClassInstanceof',
-        // 'PhanUndeclaredClassMethod',
-        // 'PhanUndeclaredClassReference',
-        // 'PhanUndeclaredConstant',
-        // 'PhanUndeclaredExtendedClass',
-        // 'PhanUndeclaredFunction',
-        // 'PhanUndeclaredInterface',
-        // 'PhanUndeclaredMethod',
-        // 'PhanUndeclaredProperty',
-        // 'PhanUndeclaredStaticMethod',
-        // 'PhanUndeclaredStaticProperty',
-        // 'PhanUndeclaredTrait',
-        // 'PhanUndeclaredTypeParameter',
-        // 'PhanUndeclaredTypeProperty',
-        // 'PhanUndeclaredVariable',
-        // 'PhanUnreferencedClass',
-        // 'PhanUnreferencedConstant',
-        // 'PhanUnreferencedMethod',
-        // 'PhanUnreferencedProperty',
-        // 'PhanVariableUseClause',
-    ],
-
-    // A list of files to include in analysis
-    'file_list' => [
-        // 'vendor/phpunit/phpunit/src/Framework/TestCase.php',
-    ],
-
-    // A file list that defines files that will be excluded
-    // from parsing and analysis and will not be read at all.
-    //
-    // This is useful for excluding hopelessly unanalyzable
-    // files that can't be removed for whatever reason.
-    'exclude_file_list' => [
-    ],
 
     // The number of processes to fork off during the analysis
     // phase.
@@ -240,14 +122,13 @@ return [
     //       to `exclude_analysis_directory_list`.
     "exclude_analysis_directory_list" => [
         'vendor',
-        // 'src/custom',
     ],
 
     // A list of plugin files to execute
     'plugins' => [
         'vendor/etsy/phan/.phan/plugins/DemoPlugin.php',
         'vendor/etsy/phan/.phan/plugins/DollarDollarPlugin.php',
-        'vendor/etsy/phan/.phan/plugins/UnreachableCodePlugin.php',
+        // 'vendor/etsy/phan/.phan/plugins/UnreachableCodePlugin.php',
         // NOTE: src/Phan/Language/Internal/FunctionSignatureMap.php mixes value without key as return type with values having keys deliberately.
         // '.phan/plugins/DuplicateArrayKeyPlugin.php',
 

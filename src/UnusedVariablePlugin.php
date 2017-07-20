@@ -29,9 +29,16 @@ use Phan\PluginV2\PluginAwareAnalysisVisitor;
 use ast\Node;
 use ast\Node\Decl;
 
+// By default, don't warn about parameters beginning with "$unused"
+// or about the variable $_
+const WHITELISTED_UNUSED_PARAM_NAME = '/^(_$|unused)/i';
+
 /**
  * This file checks for unused variables in
  * the global scope or function bodies.
+ *
+ * This depends on PluginV2, which was added in Phan 0.9.3/0.8.5.
+ * It also requires a version of Phan using AST version 40.
  *
  * As a side effect, it adds 'isRef' to \ast\Node->children in argument lists
  * of function calls, method calls (instance/static), and calls to `new MyClass($x)`
@@ -158,6 +165,48 @@ final class UnusedVariableReferenceAnnotatorVisitor extends PluginAwareAnalysisV
         } catch (\Exception $exception) {
         }
     }
+
+    // Note: In the future, it's planned to have another pass during the main analysis of this function
+    // so that this plugin add information about references
+    // to improve the unused variable checks.
+    //
+    // See \Phan\Language\Element\Parameter->getReferenceType() - it can return REFERENCE_WRITE_ONLY
+    // (E.g. preg_match('/a/', 'a value', $matches) is not a *usage* of $matches, it is a definition)
+    //
+    // In some edge cases, this plugin should depend on the Context to check if $myClassInstance->myMethod($var) is a usage of $var or a possible definition of $var
+
+    /**
+     * This will be called after all of the arguments from calls made by this function
+     * have been found to be references or non-references.
+     * @return void
+     * @override
+     */
+    public function visitMethod(Decl $node) {
+         return (new UnusedVariableVisitor($this->code_base, $this->context))->visitMethod($node);
+    }
+
+    /**
+     * This will be called after all of the arguments from calls made by this function
+     * have been found to be references or non-references.
+     * @return void
+     * @override
+     */
+    public function visitFuncDecl(Decl $node) {
+         return (new UnusedVariableVisitor($this->code_base, $this->context))->visitFuncDecl($node);
+    }
+
+    /**
+     * This will be called after all of the arguments from calls made by this function
+     * have been found to be references or non-references.
+     * @return void
+     * @override
+     */
+    public function visitClosure(Decl $node) {
+         return (new UnusedVariableVisitor($this->code_base, $this->context))->visitClosure($node);
+    }
+}
+
+class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
 
     /**
      * @param Node $node
@@ -334,8 +383,11 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
     /**
      * Expressions might be recursive
      */
-    private function parseExpr(array &$assignments, Node $statement, int &$instructionCount)
+    private function parseExpr(array &$assignments, $statement, int &$instructionCount)
     {
+        if (!($statement instanceof Node)) {
+            return;
+        }
         if (isset($statement->children['expr']) && $statement->children['expr'] instanceof Node) {
             $instructionCount++;
             $this->tryVarUse($assignments, $statement->children['expr'], $instructionCount);
@@ -343,20 +395,20 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             foreach ($statement->children['expr']->children as $exChild) {
                 $instructionCount++;
 
-                $this->tryVarUse($assignments, $exChild, $instructionCount);
-                $this->recurseToFindVarUse($assignments, $exChild, $instructionCount);
+                if ($exChild instanceof Node) {
+                    $this->tryVarUse($assignments, $exChild, $instructionCount);
+                    $this->recurseToFindVarUse($assignments, $exChild, $instructionCount);
+                }
             }
         }
     }
 
     private function recurseToFindVarUse(array &$assignments, Node $statement, int &$instructionCount)
     {
-        if ($statement instanceof Node) {
-            foreach ($statement->children as $subStmt) {
-                if ($subStmt instanceof Node) {
-                    $this->tryVarUse($assignments, $subStmt, $instructionCount);
-                    $this->recurseToFindVarUse($assignments, $subStmt, $instructionCount);
-                }
+        foreach ($statement->children as $subStmt) {
+            if ($subStmt instanceof Node) {
+                $this->tryVarUse($assignments, $subStmt, $instructionCount);
+                $this->recurseToFindVarUse($assignments, $subStmt, $instructionCount);
             }
         }
     }
@@ -410,6 +462,10 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         }
 
         $name = $node->children['name'];
+        // e.g. $$x, ${42}
+        if (!is_string($name) || !$name) {
+            return;
+        }
 
         if (!isset($assignments[$name])) {
             return;
@@ -487,6 +543,9 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             $var_node = $node->children['var'];
             if ($var_node->kind === \ast\AST_ARRAY) {
                 foreach ($var_node->children as $elem_node) {
+                    if ($elem_node === null) {
+                        continue;  // e.g. "list(, $x) = expr"
+                    }
                     assert($elem_node->kind === \ast\AST_ARRAY_ELEM);
                     $var_node = $elem_node->children['value'];
                     if ($var_node->kind !== \ast\AST_VAR) {
@@ -527,6 +586,9 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             $this->parseExpr($this->references, $node, $instructionCount);
             if (isset($node->children['var']->children['name']) && !$loopFlag) {
                 $name = $node->children['var']->children['name'];
+                if (!is_string($name) || !$name) {
+                    return false;
+                }
                 $instructionCount++;
                 // If this is a ref, mark it as used
                 $ref = false;
@@ -611,6 +673,10 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                 $shadowCount = 0;
                 $this->parseStmts($shadowAssignments, $statement->children['stmts'], $shadowCount, true);
                 $assignments = $shadowAssignments;
+                // Run through loop conditions one more time in case we are
+                // assigning in the loop scope and using that as a condition for
+                // looping (issue #4)
+                $this->parseCond($assignments, $statement, $instructionCount);
                 continue;
             }
 
@@ -716,7 +782,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
      */
     public function analyzeMethod(Decl $node)
     {
-        //Debug::printNode($node);
+        //\Phan\Debug::printNode($node);
 
         // Collect all assignments
         $assignments = [];
@@ -749,12 +815,15 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                     }
 
                     if ($shouldWarn) {
-                        $this->emitPluginIssue(
-                            $this->code_base,
-                            $this->context,
-                            'PhanPluginUnusedMethodArgument',
-                            "Parameter is never used: $".$param."."
-                        );
+                        if ($this->shouldWarnAboutParameter($param, $node)) {
+                            $this->emitPluginIssue(
+                                $this->code_base,
+                                clone($this->context)->withLineNumberStart($data['line']),
+                                'PhanPluginUnusedMethodArgument',
+                                'Parameter is never used: ${PARAMETER}',
+                                [$param]
+                            );
+                        }
                     }
                 } else {
                     // If there is a reverse pointer to this var,
@@ -764,9 +833,10 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                         if (isset($assignments[$param])) {
                             $this->emitPluginIssue(
                                 $this->code_base,
-                                $this->context,
+                                clone($this->context)->withLineNumberStart($data['line']),
                                 'PhanPluginUnnecessaryReference',
-                                "$".$pointer." (assigned on line ".$data['line'].") is a reference to $".$param.", but $".$param." is never used."
+                                '${VARIABLE} is a reference to ${PARAMETER}, but ${PARAMETER} is never used',
+                                [$pointer, $param, $param]
                             );
                         }
                     } else {
@@ -782,15 +852,38 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                         if ($shouldWarn) {
                             $this->emitPluginIssue(
                                 $this->code_base,
-                                $this->context,
+                                clone($this->context)->withLineNumberStart($data['line']),
                                 'PhanPluginUnusedVariable',
-                                "Variable is never used: $".$param." assigned on line ".$data['line']."."
+                                'Variable is never used: ${VARIABLE}',
+                                [$param]
                             );
                         }
                     }
                 }
             }
         }
+    }
+
+    private function shouldWarnAboutParameter(string $param, Decl $decl) : bool
+    {
+        // Don't warn about $_ or $unusedVariable or $unused_variable
+        if (preg_match(WHITELISTED_UNUSED_PARAM_NAME, $param) > 0) {
+            return false;
+        }
+        $docComment = $decl->docComment ?? '';
+        if (!$docComment) {
+            return true;
+        }
+        // If there is a line of the form "* @param [T] $myUnusedVar [description] @phan-unused-param [rest of description]" anywhere in the doc comment,
+        // then don't warn about the parameter being unused.
+        if (strpos($docComment, '@phan-unused-param') === false) {
+            return true;
+        }
+        $regex = '/@param[^$]*\$' . preg_quote($param, '/') . '\b.*@phan-unused-param\b/';
+        if (preg_match($regex, $docComment) > 0) {
+            return false;
+        }
+        return true;
     }
 }
 
