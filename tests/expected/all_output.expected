@@ -22,3 +22,4 @@ src/001_func.php:25 PhanPluginUnusedMethodArgument Parameter is never used: $thr
 src/002_closure.php:7 PhanPluginUnusedVariable Variable is never used: $one
 src/002_closure.php:8 PhanPluginUnusedVariable Variable is never used: $two
 src/002_closure.php:24 PhanPluginUnusedMethodArgument Parameter is never used: $three
+src/005_static_variables.php:24 PhanPluginUnusedVariable Variable is never used: $initialized

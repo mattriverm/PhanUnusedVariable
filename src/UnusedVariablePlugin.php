@@ -114,6 +114,8 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
     /** @var array */
     protected $reverse_references = [];
 
+    /** @var array */
+    protected $statics = [];
 
     /**
      * Expressions might be recursive
@@ -246,6 +248,18 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         $used = false;
         $param = false;
 
+        // If this was declared static before, and we are not tracking it (has
+        // been used already), don't record a new assignment
+        if (in_array($name, $this->statics)) {
+            return;
+        }
+
+        // Keep a record of static variables
+        if (\ast\AST_STATIC === $node->kind) {
+            $this->statics[] = $name;
+        }
+
+
         if (isset($assignments[$name])) {
             $ref = $assignments[$name]['reference'];
             $used = true;
@@ -272,7 +286,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         int &$instructionCount,
         bool $loopFlag = false
     ): bool {
-        if (\ast\AST_ASSIGN === $node->kind || \ast\AST_ASSIGN_OP === $node->kind) {
+        if (\ast\AST_ASSIGN === $node->kind || \ast\AST_ASSIGN_OP === $node->kind || \ast\AST_STATIC === $node->kind) {
             $this->parseExpr($assignments, $node, $instructionCount);
 
             $var_node = $node->children['var'];
