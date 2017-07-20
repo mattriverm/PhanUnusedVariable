@@ -408,7 +408,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                 $shadowCount = 0;
                 $this->parseStmts($shadowAssignments, $statement->children['stmts'], $shadowCount, true);
                 $assignments = $shadowAssignments;
-                // Run trough loop conditions one more time in case we are
+                // Run through loop conditions one more time in case we are
                 // assigning in the loop scope and using that as a condition for
                 // looping (issue #4)
                 $this->parseCond($assignments, $statement, $instructionCount);
