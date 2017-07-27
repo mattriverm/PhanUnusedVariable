@@ -25,3 +25,18 @@ class testStaticUnused
         $initialized = true;
     }
 }
+
+class testStaticUsedIn
+{
+    public function run()
+    {
+        static $initialized = false;
+        if ($initialized) return;
+        $initialized = true;
+        $this->innerMethod();
+    }
+
+    private function innerMethod()
+    {
+    }
+}
