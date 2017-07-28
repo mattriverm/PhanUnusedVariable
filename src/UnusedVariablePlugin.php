@@ -150,9 +150,18 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         }
     }
 
+    const RELATIONAL_OPS = [
+        \ast\AST_AND => true,
+        \ast\AST_BINARY_OP => true,
+        \ast\AST_COALESCE => true,
+        \ast\AST_GREATER => true,
+        \ast\AST_GREATER_EQUAL => true,
+        \ast\AST_OR => true,
+    ];
+
     private function parseCond(array &$assignments, Node $node, int &$instructionCount)
     {
-        if (!isset($node->children['cond']) ||  !($node->children['cond'] instanceof Node)) {
+        if (!isset($node->children['cond']) || !($node->children['cond'] instanceof Node)) {
             return;
         }
 
@@ -161,17 +170,29 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             if (is_array($cond)) {
                 // TODO: Use node kind instead.
                 foreach ($cond as $key => $condNode) {
-                    if ($key === 'expr') {
-                        $this->parseExpr($assignments, $condNode, $instructionCount);
-                    } elseif ($key == 'left' || $key == 'right') {
-                        $this->tryVarUse($assignments, $condNode, $instructionCount);
-                        $this->parseExpr($assignments, $condNode, $instructionCount);
+                    $this->tryVarUse($assignments, $condNode, $instructionCount);
+                    $this->parseExpr($assignments, $condNode, $instructionCount);
+                    
+                    if ($condNode instanceof Node) {
+                        if (array_key_exists($condNode->kind, self::RELATIONAL_OPS)) {
+                            $this->parseRelationalOp($assignments, $condNode, $instructionCount);
+                        }
                     } elseif ($key == 'args') {
                         $this->parseStmts($assignments, $condNode, $instructionCount);
-                    } else {
-                        $this->tryVarUse($assignments, $condNode, $instructionCount);
                     }
                 }
+            }
+        }
+    }
+
+    private function parseRelationalOp(array &$assignments, Node $node, int &$instructionCount)
+    {
+        foreach ($node->children as $childNode) {
+            if ($childNode instanceof Node && array_key_exists($childNode->kind, self::RELATIONAL_OPS)) {
+                $this->parseRelationalOp($assignments, $childNode, $instructionCount);
+            } else {
+                $this->tryVarUse($assignments, $childNode, $instructionCount);
+                $this->parseExpr($assignments, $childNode, $instructionCount);
             }
         }
     }

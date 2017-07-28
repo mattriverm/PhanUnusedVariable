@@ -304,6 +304,15 @@ class testCountingInFor
         }
     }
 }
+// Issue #6
+function testUsageInForCondition($a, $b) {
+    $limit = $a < $b ? $a : $b;
+    for ($i = 0; $i < $limit; $i++) {
+        echo $i;
+    }
+    return $i;
+}
+
 
 // Fail on $thirteen
 class testCountingInDo
@@ -356,6 +365,17 @@ class testMoreAssignmentInCondition
             }
         }
     }
+}
+
+// Issue #8
+function testLoopWithNestedExpression($a, $b) {
+    $limit = $a < $b ? $a : $b;
+    $i = 0;
+    while (true && $i < $limit) {  // emits an issue. However, just "while ($i < $limit)" would not warn
+        echo $i;
+        $i++;
+    }
+    return $i;
 }
 
 // This should be ok
