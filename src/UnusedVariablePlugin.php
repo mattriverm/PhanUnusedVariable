@@ -30,8 +30,9 @@ use ast\Node;
 use ast\Node\Decl;
 
 // By default, don't warn about parameters beginning with "$unused"
-// or about the variable $_
+// or about the parameter "$_"
 const WHITELISTED_UNUSED_PARAM_NAME = '/^(_$|unused)/i';
+const WHITELISTED_UNUSED_VARIABLE_NAME = '/^(_$|unused)/i';
 
 /**
  * This file checks for unused variables in
@@ -345,6 +346,9 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
     /** @var array */
     protected $references = [];
 
+    /** @var array references found in parameters */
+    protected $param_references = [];
+
     /** @var array */
     protected $reverse_references = [];
 
@@ -374,10 +378,19 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         }
     }
 
+    const NEW_SCOPE_KINDS = [
+        \ast\AST_CLOSURE => true,
+        \ast\AST_FUNC_DECL => true,
+        \ast\AST_METHOD => true,
+    ];
+
     private function recurseToFindVarUse(array &$assignments, Node $statement, int &$instructionCount)
     {
-        foreach ($statement->children as $subStmt) {
+        foreach ($statement->children as $name => $subStmt) {
             if ($subStmt instanceof Node) {
+                if ($name === 'stmts' && array_key_exists($statement->kind, self::NEW_SCOPE_KINDS)) {
+                    continue;
+                }
                 $this->tryVarUse($assignments, $subStmt, $instructionCount);
                 $this->recurseToFindVarUse($assignments, $subStmt, $instructionCount);
             }
@@ -654,6 +667,9 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             }
 
             if (\ast\AST_STMT_LIST === $statement->kind) {
+                if (array_key_exists($statement->kind, self::NEW_SCOPE_KINDS)) {
+                    return;
+                }
                 $this->parseStmts($assignments, $statement, $instructionCount, $loopFlag);
                 return;
             }
@@ -702,7 +718,11 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             foreach ($statement->children as $name => $subStmt) {
                 if ($subStmt instanceof Node) {
                     if (\ast\AST_STMT_LIST === $subStmt->kind) {
+                        if (array_key_exists($statement->kind, self::NEW_SCOPE_KINDS)) {
+                            continue;
+                        }
                         $this->parseStmts($assignments, $subStmt, $instructionCount, $loopFlag);
+                        continue;
                     }
 
                     if (isset($subStmt->children['name'])) {
@@ -739,7 +759,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
 
             // Reference?
             if (\ast\flags\EXEC_EVAL === $p->flags) {
-                $assignments[$name] = $this->references[$name] = [
+                $assignments[$name] = $this->references[$name] = $this->param_references[$name] = [
                     'line' => $node->lineno,
                     'key' => 0,
                     'param' => true,
@@ -801,8 +821,6 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
      */
     public function analyzeMethod(Decl $node)
     {
-        //\Phan\Debug::printNode($node);
-
         // Collect all assignments
         $assignments = [];
 
@@ -860,15 +878,17 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                         }
                     } else {
                         $shouldWarn = false;
-                        if ($data['reference']) {
-                            if ($data['used'] == false) {
+                        if (!isset($this->param_references[$param])) {
+                            if ($data['reference']) {
+                                if ($data['used'] == false) {
+                                    $shouldWarn = true;
+                                }
+                            } else {
                                 $shouldWarn = true;
                             }
-                        } else {
-                            $shouldWarn = true;
                         }
 
-                        if ($shouldWarn) {
+                        if ($shouldWarn && preg_match(WHITELISTED_UNUSED_VARIABLE_NAME, $param) === 0) {
                             $this->emitPluginIssue(
                                 $this->code_base,
                                 clone($this->context)->withLineNumberStart($data['line']),
