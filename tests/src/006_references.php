@@ -112,7 +112,7 @@ class testReferences
     }
 }
 
-function foo(string &$outputArg) {
+function foo6(string &$outputArg) {
     $outputArg = str_replace("_", "-", $outputArg);
 }
 // @todo
