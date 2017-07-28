@@ -339,6 +339,8 @@ final class UnusedVariableReferenceAnnotatorVisitor extends PluginAwareAnalysisV
 }
 
 class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
+    const RECORD_ASSIGNS = false;
+    const DONT_RECORD_ASSIGNS = true;
 
     /** @var array */
     protected $references = [];
@@ -346,6 +348,8 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
     /** @var array */
     protected $reverse_references = [];
 
+    /** @var array */
+    protected $statics = [];
 
     /**
      * Expressions might be recursive
@@ -380,9 +384,18 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         }
     }
 
+    const RELATIONAL_OPS = [
+        \ast\AST_AND => true,
+        \ast\AST_BINARY_OP => true,
+        \ast\AST_COALESCE => true,
+        \ast\AST_GREATER => true,
+        \ast\AST_GREATER_EQUAL => true,
+        \ast\AST_OR => true,
+    ];
+
     private function parseCond(array &$assignments, Node $node, int &$instructionCount)
     {
-        if (!isset($node->children['cond']) ||  !($node->children['cond'] instanceof Node)) {
+        if (!isset($node->children['cond']) || !($node->children['cond'] instanceof Node)) {
             return;
         }
 
@@ -391,17 +404,29 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             if (is_array($cond)) {
                 // TODO: Use node kind instead.
                 foreach ($cond as $key => $condNode) {
-                    if ($key === 'expr') {
-                        $this->parseExpr($assignments, $condNode, $instructionCount);
-                    } elseif ($key == 'left' || $key == 'right') {
-                        $this->tryVarUse($assignments, $condNode, $instructionCount);
-                        $this->parseExpr($assignments, $condNode, $instructionCount);
+                    $this->tryVarUse($assignments, $condNode, $instructionCount);
+                    $this->parseExpr($assignments, $condNode, $instructionCount);
+                    
+                    if ($condNode instanceof Node) {
+                        if (array_key_exists($condNode->kind, self::RELATIONAL_OPS)) {
+                            $this->parseRelationalOp($assignments, $condNode, $instructionCount);
+                        }
                     } elseif ($key == 'args') {
                         $this->parseStmts($assignments, $condNode, $instructionCount);
-                    } else {
-                        $this->tryVarUse($assignments, $condNode, $instructionCount);
                     }
                 }
+            }
+        }
+    }
+
+    private function parseRelationalOp(array &$assignments, Node $node, int &$instructionCount)
+    {
+        foreach ($node->children as $childNode) {
+            if ($childNode instanceof Node && array_key_exists($childNode->kind, self::RELATIONAL_OPS)) {
+                $this->parseRelationalOp($assignments, $childNode, $instructionCount);
+            } else {
+                $this->tryVarUse($assignments, $childNode, $instructionCount);
+                $this->parseExpr($assignments, $childNode, $instructionCount);
             }
         }
     }
@@ -439,7 +464,12 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         }
 
         if ($instructionCount > $assignments[$name]['key']) {
-            unset($assignments[$name]);
+            // Dont unset references, only mark them as used
+            if (isset($this->references[$name])) {
+                $assignments[$name]['used'] = true;
+            } else {
+                unset($assignments[$name]);
+            }
 
             // Okay, is it a reference to something?
             if (isset($this->reverse_references[$name])) {
@@ -478,6 +508,18 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         $used = false;
         $param = false;
 
+        // If this was declared static before, and we are not tracking it (has
+        // been used already), don't record a new assignment
+        if (in_array($name, $this->statics)) {
+            return;
+        }
+
+        // Keep a record of static variables
+        if (\ast\AST_STATIC === $node->kind) {
+            $this->statics[] = $name;
+        }
+
+
         if (isset($assignments[$name])) {
             $ref = $assignments[$name]['reference'];
             $used = true;
@@ -502,9 +544,9 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         array &$assignments,
         Node $node,
         int &$instructionCount,
-        bool $loopFlag = false
+        bool $loopFlag = self::RECORD_ASSIGNS
     ): bool {
-        if (\ast\AST_ASSIGN === $node->kind || \ast\AST_ASSIGN_OP === $node->kind) {
+        if (\ast\AST_ASSIGN === $node->kind || \ast\AST_ASSIGN_OP === $node->kind || \ast\AST_STATIC === $node->kind) {
             $this->parseExpr($assignments, $node, $instructionCount);
 
             $var_node = $node->children['var'];
@@ -598,7 +640,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         array &$assignments,
         Node $node,
         int &$instructionCount,
-        bool $loopFlag = false
+        bool $loopFlag = self::RECORD_ASSIGNS
     ) {
         foreach ($node->children as $statement) {
             if (!($statement instanceof Node)) {
@@ -612,7 +654,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             }
 
             if (\ast\AST_STMT_LIST === $statement->kind) {
-                $this->parseStmts($assignments, $statement, $instructionCount);
+                $this->parseStmts($assignments, $statement, $instructionCount, $loopFlag);
                 return;
             }
 
@@ -634,11 +676,21 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                 $this->parseCond($assignments, $statement, $instructionCount);
                 $this->parseExpr($assignments, $statement, $instructionCount);
 
-                $this->parseStmts($assignments, $statement->children['stmts'], $instructionCount);
+                $this->parseStmts(
+                    $assignments,
+                    $statement->children['stmts'],
+                    $instructionCount,
+                    self::RECORD_ASSIGNS
+                );
                 $shadowAssignments = $assignments;
                 // Now we know if there are dangling assignments
                 $shadowCount = 0;
-                $this->parseStmts($shadowAssignments, $statement->children['stmts'], $shadowCount, true);
+                $this->parseStmts(
+                    $shadowAssignments,
+                    $statement->children['stmts'],
+                    $shadowCount,
+                    self::DONT_RECORD_ASSIGNS
+                );
                 $assignments = $shadowAssignments;
                 // Run through loop conditions one more time in case we are
                 // assigning in the loop scope and using that as a condition for
@@ -650,7 +702,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             foreach ($statement->children as $name => $subStmt) {
                 if ($subStmt instanceof Node) {
                     if (\ast\AST_STMT_LIST === $subStmt->kind) {
-                        $this->parseStmts($assignments, $subStmt, $instructionCount);
+                        $this->parseStmts($assignments, $subStmt, $instructionCount, $loopFlag);
                     }
 
                     if (isset($subStmt->children['name'])) {
@@ -660,7 +712,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
 
                         // Else control structure or other scope?
                         $this->parseCond($assignments, $subStmt, $instructionCount);
-                        $this->parseStmts($assignments, $subStmt, $instructionCount);
+                        $this->parseStmts($assignments, $subStmt, $instructionCount, $loopFlag);
 
                         foreach ($subStmt->children as $argKey => $argParam) {
                             $this->tryVarUseUnchecked($assignments, $argParam);
@@ -687,7 +739,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
 
             // Reference?
             if (\ast\flags\EXEC_EVAL === $p->flags) {
-                $assignments[$p->children['name']] = [
+                $assignments[$name] = $this->references[$name] = [
                     'line' => $node->lineno,
                     'key' => 0,
                     'param' => true,
@@ -695,7 +747,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                     'used' => false
                 ];
             } else {
-                $assignments[$p->children['name']] = [
+                $assignments[$name] = [
                     'line' => $node->lineno,
                     'key' => 0,
                     'param' => true,

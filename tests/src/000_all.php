@@ -304,6 +304,15 @@ class testCountingInFor
         }
     }
 }
+// Issue #6
+function testUsageInForCondition($a, $b) {
+    $limit = $a < $b ? $a : $b;
+    for ($i = 0; $i < $limit; $i++) {
+        echo $i;
+    }
+    return $i;
+}
+
 
 // Fail on $thirteen
 class testCountingInDo
@@ -356,6 +365,17 @@ class testMoreAssignmentInCondition
             }
         }
     }
+}
+
+// Issue #8
+function testLoopWithNestedExpression($a, $b) {
+    $limit = $a < $b ? $a : $b;
+    $i = 0;
+    while (true && $i < $limit) {  // emits an issue. However, just "while ($i < $limit)" would not warn
+        echo $i;
+        $i++;
+    }
+    return $i;
 }
 
 // This should be ok
@@ -418,137 +438,15 @@ class testListAssign
         return $a;
     }
 }
-/**
- * References
- *
- *
- */
-// Ok
-class testSimpleReferenceInParam
-{
-    public function test(&$a)
-    {
-        $a = 'b';
-    }
-}
 
-// Fail on $fourteen
-class testSimpleReferencesInParam
-{
-    public function test(&$a, &$fifteen)
-    {
-        $a = 'b';
-    }
-}
-
-// Ok
-class testSimpleReferencesAssignmentInParam
-{
-    public function test(&$a, &$b)
-    {
-        $a = $b;
-    }
-}
-
-// $a and $b is never used. You have modified $a, but never use it.
-// However meaningless, it is correct that they both are unused.
-class testSimpleReference
-{
-    public function test()
-    {
-        $seventeen = 'a';
-        $sixteen = &$seventeen;
-        $sixteen = 'b';
-    }
-}
-
-// This is ok. We are using both a and b
-class testSimpleReferenceIsUsed
-{
-    public function test()
-    {
-        $a = 'a';
-        $b = &$a;
-        $b = 'b';
-        if  ($a == 'b') {
-            return true;
+// Issue #7
+function testBranchInLoop() {
+    $sleepTime = 50000;
+    while (rand() % 5 > 0) {
+        echo "Other code\n";
+        usleep($sleepTime);
+        if (rand() % 2 > 0) {  // the branch seems to effect detection
+           $sleepTime = $sleepTime * 2;  // erroneously warns
         }
-    }
+    }   
 }
-class testSimpleParamReferenceIsUsed
-{
-    public function test(&$a)
-    {
-        $b = &$a;
-        $b = 'b';
-        if  ($a == 'b') {
-            return true;
-        }
-    }
-}
-
-// $a is never used
-class testSimpleReferenceIsNotUsed
-{
-    public function test()
-    {
-        $nineteen = 'a';
-        $eighteen = &$nineteen;
-        $eighteen = 'b';
-        if  ($eighteen == 'b') {
-            return true;
-        }
-    }
-}
-
-// This is ok
-class testSimpleReferenceUseOriginal
-{
-    public function test()
-    {
-        $a = 'a';
-        $b = &$a;
-        $b = 'b';
-        return explode("/", $a);
-    }
-}
-
-class testReferences
-{
-    public function setConfig($config)
-    {
-        return $config;
-    }
-
-    public static function new(array $config)
-    {
-        $ret = new static;
-
-        // Loop sections and set false to everything
-        foreach ($config as $secName => &$section) {
-            foreach ($section['fields'] as &$confField) {
-                $confField = array_merge($confField, ['edit' => false]);
-            }
-        }
-        $ret->setConfig($config);
-
-        return $ret;
-    }
-}
-
-// @todo
-// class testIncremenetButNeverReturnedOrUsed {
-//     public function pub()
-//     {
-//         $puba = ['a', 'b', 'c'];
-
-//         $pub = array_shift($puba);
-
-//         while($pub == 'a') {
-//             $c = 0;
-//         }
-
-//         $c++;
-//     }
-// }
-
