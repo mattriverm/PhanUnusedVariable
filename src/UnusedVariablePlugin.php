@@ -107,6 +107,8 @@ final class UnusedVariableReferenceAnnotatorVisitor extends PluginAwareAnalysisV
 }
 
 class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
+    const RECORD_ASSIGNS = false;
+    const DONT_RECORD_ASSIGNS = true;
 
     /** @var array */
     protected $references = [];
@@ -310,7 +312,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         array &$assignments,
         Node $node,
         int &$instructionCount,
-        bool $loopFlag = false
+        bool $loopFlag = self::RECORD_ASSIGNS
     ): bool {
         if (\ast\AST_ASSIGN === $node->kind || \ast\AST_ASSIGN_OP === $node->kind || \ast\AST_STATIC === $node->kind) {
             $this->parseExpr($assignments, $node, $instructionCount);
@@ -406,7 +408,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         array &$assignments,
         Node $node,
         int &$instructionCount,
-        bool $loopFlag = false
+        bool $loopFlag = self::RECORD_ASSIGNS
     ) {
         foreach ($node->children as $statement) {
             if (!($statement instanceof Node)) {
@@ -420,7 +422,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             }
 
             if (\ast\AST_STMT_LIST === $statement->kind) {
-                $this->parseStmts($assignments, $statement, $instructionCount);
+                $this->parseStmts($assignments, $statement, $instructionCount, $loopFlag);
                 return;
             }
 
@@ -442,11 +444,21 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                 $this->parseCond($assignments, $statement, $instructionCount);
                 $this->parseExpr($assignments, $statement, $instructionCount);
 
-                $this->parseStmts($assignments, $statement->children['stmts'], $instructionCount);
+                $this->parseStmts(
+                    $assignments,
+                    $statement->children['stmts'],
+                    $instructionCount,
+                    self::RECORD_ASSIGNS
+                );
                 $shadowAssignments = $assignments;
                 // Now we know if there are dangling assignments
                 $shadowCount = 0;
-                $this->parseStmts($shadowAssignments, $statement->children['stmts'], $shadowCount, true);
+                $this->parseStmts(
+                    $shadowAssignments,
+                    $statement->children['stmts'],
+                    $shadowCount,
+                    self::DONT_RECORD_ASSIGNS
+                );
                 $assignments = $shadowAssignments;
                 // Run trough loop conditions one more time in case we are
                 // assigning in the loop scope and using that as a condition for
@@ -458,7 +470,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             foreach ($statement->children as $name => $subStmt) {
                 if ($subStmt instanceof Node) {
                     if (\ast\AST_STMT_LIST === $subStmt->kind) {
-                        $this->parseStmts($assignments, $subStmt, $instructionCount);
+                        $this->parseStmts($assignments, $subStmt, $instructionCount, $loopFlag);
                     }
 
                     if (isset($subStmt->children['name'])) {
@@ -468,7 +480,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
 
                         // Else control structure or other scope?
                         $this->parseCond($assignments, $subStmt, $instructionCount);
-                        $this->parseStmts($assignments, $subStmt, $instructionCount);
+                        $this->parseStmts($assignments, $subStmt, $instructionCount, $loopFlag);
 
                         foreach ($subStmt->children as $argKey => $argParam) {
                             $this->tryVarUseUnchecked($assignments, $argParam);

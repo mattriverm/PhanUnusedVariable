@@ -438,3 +438,15 @@ class testListAssign
         return $a;
     }
 }
+
+// Issue #7
+function testBranchInLoop() {
+    $sleepTime = 50000;
+    while (rand() % 5 > 0) {
+        echo "Other code\n";
+        usleep($sleepTime);
+        if (rand() % 2 > 0) {  // the branch seems to effect detection
+           $sleepTime = $sleepTime * 2;  // erroneously warns
+        }
+    }   
+}
