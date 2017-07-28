@@ -204,9 +204,6 @@ final class UnusedVariableReferenceAnnotatorVisitor extends PluginAwareAnalysisV
     public function visitClosure(Decl $node) {
          return (new UnusedVariableVisitor($this->code_base, $this->context))->visitClosure($node);
     }
-}
-
-class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
 
     /**
      * @param Node $node
@@ -338,36 +335,6 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                 $argument->children['isRef'] = true;
             }
         }
-    }
-
-    /**
-     * This is called after all of the arguments from calls made by this function
-     * have been found to be references or non-references.
-     * @return void
-     * @override
-     */
-    public function visitMethod(Decl $node) {
-         return (new UnusedVariableVisitor($this->code_base, $this->context))->visitMethod($node);
-    }
-
-    /**
-     * This is called after all of the arguments from calls made by this function
-     * have been found to be references or non-references.
-     * @return void
-     * @override
-     */
-    public function visitFuncDecl(Decl $node) {
-         return (new UnusedVariableVisitor($this->code_base, $this->context))->visitFuncDecl($node);
-    }
-
-    /**
-     * This is called after all of the arguments from calls made by this function
-     * have been found to be references or non-references.
-     * @return void
-     * @override
-     */
-    public function visitClosure(Decl $node) {
-         return (new UnusedVariableVisitor($this->code_base, $this->context))->visitClosure($node);
     }
 }
 
