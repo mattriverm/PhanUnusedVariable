@@ -406,7 +406,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                 foreach ($cond as $key => $condNode) {
                     $this->tryVarUse($assignments, $condNode, $instructionCount);
                     $this->parseExpr($assignments, $condNode, $instructionCount);
-                    
+
                     if ($condNode instanceof Node) {
                         if (array_key_exists($condNode->kind, self::RELATIONAL_OPS)) {
                             $this->parseRelationalOp($assignments, $condNode, $instructionCount);
