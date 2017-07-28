@@ -209,7 +209,12 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         }
 
         if ($instructionCount > $assignments[$name]['key']) {
-            unset($assignments[$name]);
+            // Dont unset references, only mark them as used
+            if (isset($this->references[$name])) {
+                $assignments[$name]['used'] = true;
+            } else {
+                unset($assignments[$name]);
+            }
 
             // Okay, is it a reference to something?
             if (isset($this->reverse_references[$name])) {
@@ -469,7 +474,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
 
             // Reference?
             if (\ast\flags\EXEC_EVAL === $p->flags) {
-                $assignments[$p->children['name']] = [
+                $assignments[$name] = $this->references[$name] = [
                     'line' => $node->lineno,
                     'key' => 0,
                     'param' => true,
@@ -477,7 +482,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                     'used' => false
                 ];
             } else {
-                $assignments[$p->children['name']] = [
+                $assignments[$name] = [
                     'line' => $node->lineno,
                     'key' => 0,
                     'param' => true,

@@ -12,10 +12,6 @@ src/000_all.php:273 PhanPluginUnusedVariable Variable is never used: $eleven
 src/000_all.php:295 PhanPluginUnusedVariable Variable is never used: $twelwe
 src/000_all.php:318 PhanPluginUnusedVariable Variable is never used: $thirteen
 src/000_all.php:417 PhanPluginUnusedVariable Variable is never used: $fourteen
-src/000_all.php:438 PhanPluginUnusedMethodArgument Parameter is never used: $fifteen
-src/000_all.php:459 PhanPluginUnnecessaryReference $sixteen is a reference to $seventeen, but $seventeen is never used
-src/000_all.php:461 PhanPluginUnusedVariable Variable is never used: $sixteen
-src/000_all.php:495 PhanPluginUnnecessaryReference $eighteen is a reference to $nineteen, but $nineteen is never used
 src/001_func.php:7 PhanPluginUnusedVariable Variable is never used: $one
 src/001_func.php:8 PhanPluginUnusedVariable Variable is never used: $two
 src/001_func.php:25 PhanPluginUnusedMethodArgument Parameter is never used: $three
@@ -23,3 +19,7 @@ src/002_closure.php:7 PhanPluginUnusedVariable Variable is never used: $one
 src/002_closure.php:8 PhanPluginUnusedVariable Variable is never used: $two
 src/002_closure.php:24 PhanPluginUnusedMethodArgument Parameter is never used: $three
 src/005_static_variables.php:24 PhanPluginUnusedVariable Variable is never used: $initialized
+src/006_references.php:14 PhanPluginUnusedMethodArgument Parameter is never used: $fifteen
+src/006_references.php:35 PhanPluginUnnecessaryReference $sixteen is a reference to $seventeen, but $seventeen is never used
+src/006_references.php:37 PhanPluginUnusedVariable Variable is never used: $sixteen
+src/006_references.php:71 PhanPluginUnnecessaryReference $eighteen is a reference to $nineteen, but $nineteen is never used
