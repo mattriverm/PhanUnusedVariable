@@ -462,7 +462,9 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             return;
         }
 
-        if (\ast\AST_VAR !== $node->kind) {
+        $kind = $node->kind;
+        // foo($x), function() use($x)
+        if (\ast\AST_VAR !== $kind && \ast\AST_CLOSURE_VAR !== $kind) {
             return;
         }
 
@@ -667,11 +669,11 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             }
 
             if (\ast\AST_STMT_LIST === $statement->kind) {
-                if (array_key_exists($statement->kind, self::NEW_SCOPE_KINDS)) {
-                    return;
+                if (array_key_exists($node->kind, self::NEW_SCOPE_KINDS)) {
+                    continue;
                 }
                 $this->parseStmts($assignments, $statement, $instructionCount, $loopFlag);
-                return;
+                continue;
             }
 
             // Reset the instruction count and then run the loop again
@@ -776,6 +778,34 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                 ];
             }
         }
+        foreach ($node->children['uses']->children ?? [] as $p) {
+            if ($p->kind !== \ast\AST_CLOSURE_VAR) {
+                continue;
+            }
+            $name = $p->children['name'];
+            if (!is_string($name) || !$name) {
+                continue;
+            }
+
+            // Reference?
+            if (\ast\flags\EXEC_EVAL === $p->flags) {
+                $assignments[$name] = $this->references[$name] = $this->param_references[$name] = [
+                    'line' => $node->lineno,
+                    'key' => 0,
+                    'param' => 'closureUse',
+                    'reference' => true,
+                    'used' => false
+                ];
+            } else {
+                $assignments[$name] = [
+                    'line' => $node->lineno,
+                    'key' => 0,
+                    'param' => 'closureUse',  // false, true (function/method/closure param), or 'closureUse' (inherited from parent scope)
+                    'reference' => false,
+                    'used' => false
+                ];
+            }
+        }
     }
 
     /**
@@ -858,6 +888,27 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                                 clone($this->context)->withLineNumberStart($data['line']),
                                 'PhanPluginUnusedMethodArgument',
                                 'Parameter is never used: ${PARAMETER}',
+                                [$param]
+                            );
+                        }
+                    }
+                } elseif ($data['param'] === 'closureUse') {
+                    $shouldWarn = false;
+                    if ($data['reference']) {
+                        if ($data['used'] == false) {
+                            $shouldWarn = true;
+                        }
+                    } else {
+                        $shouldWarn = true;
+                    }
+
+                    if ($shouldWarn) {
+                        if ($this->shouldWarnAboutParameter($param, $node)) {
+                            $this->emitPluginIssue(
+                                $this->code_base,
+                                clone($this->context)->withLineNumberStart($data['line']),
+                                'PhanPluginUnusedClosureUseArgument',
+                                'Closure use variable is never used: ${VARIABLE}',
                                 [$param]
                             );
                         }
