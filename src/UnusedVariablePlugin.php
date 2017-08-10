@@ -404,6 +404,74 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         \ast\AST_DO_WHILE => true
     ];
 
+    private function parseLoop(
+        array &$assignments,
+        Node $node,
+        int &$instructionCount,
+        bool $loopFlag = self::RECORD_ASSIGNS
+    ) {
+        if (\ast\AST_FOREACH === $node->kind) {
+            if (\ast\AST_REF === $node->children['value']->kind ?? 0) {
+                $this->references[$node->children['value']->children['var']->children['name']] = [
+                    'line' => $node->lineno,
+                    'key' => $instructionCount,
+                    'param' => false,
+                    'reference' => true,
+                    'used' => false
+                ];
+            }
+            if (\ast\AST_VAR === $node->children['value']->kind ?? 0) {
+                $this->assignSingle(
+                    $assignments,
+                    $node->children['value'],
+                    $instructionCount,
+                    $node->children['value']->children['name']
+                );
+            }
+            if (!is_null($node->children['key'])) {
+                $this->assignSingle(
+                    $assignments,
+                    $node->children['key'],
+                    $instructionCount,
+                    $node->children['key']->children['name']
+                );
+            }
+        }
+
+        $this->parseCond($assignments, $node, $instructionCount);
+        $this->parseExpr($assignments, $node, $instructionCount);
+
+        if (\ast\AST_FOR === $node->kind) {
+            $this->parseStmts(
+                $assignments,
+                $node->children['init'],
+                $instructionCount,
+                self::RECORD_ASSIGNS
+            );
+        }
+
+        $this->parseStmts(
+            $assignments,
+            $node->children['stmts'],
+            $instructionCount,
+            self::RECORD_ASSIGNS
+        );
+        $shadowAssignments = $assignments;
+        // Now we know if there are dangling assignments
+        $shadowCount = 0;
+        $this->parseStmts(
+            $shadowAssignments,
+            $node->children['stmts'],
+            $shadowCount,
+            self::DONT_RECORD_ASSIGNS
+        );
+        $assignments = $shadowAssignments;
+        // Run trough loop conditions one more time in case we are
+        // assigning in the loop scope and using that as a condition for
+        // looping (issue #4)
+        $this->parseCond($assignments, $node, $instructionCount);
+    }
+
     private function parseStmts(
         array &$assignments,
         Node $node,
@@ -426,68 +494,13 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                 return;
             }
 
-            // Reset the instruction count and then run the loop again
             if (array_key_exists($statement->kind, self::LOOPS_SET)) {
-                if (\ast\AST_FOREACH === $statement->kind) {
-                    if (\ast\AST_REF === $statement->children['value']->kind ?? 0) {
-                        $this->references[$statement->children['value']->children['var']->children['name']] = [
-                            'line' => $statement->lineno,
-                            'key' => $instructionCount,
-                            'param' => false,
-                            'reference' => true,
-                            'used' => false
-                        ];
-                    }
-                    if (\ast\AST_VAR === $statement->children['value']->kind ?? 0) {
-                        $this->assignSingle(
-                            $assignments,
-                            $statement->children['value'],
-                            $instructionCount,
-                            $statement->children['value']->children['name']
-                        );
-                    }
-                    if (!is_null($statement->children['key'])) {
-                        $this->assignSingle(
-                            $assignments,
-                            $statement->children['key'],
-                            $instructionCount,
-                            $statement->children['key']->children['name']
-                        );
-                    }
-                }
-
-                $this->parseCond($assignments, $statement, $instructionCount);
-                $this->parseExpr($assignments, $statement, $instructionCount);
-
-                if (\ast\AST_FOR === $statement->kind) {
-                    $this->parseStmts(
-                        $assignments,
-                        $statement->children['init'],
-                        $instructionCount,
-                        self::RECORD_ASSIGNS
-                    );
-                }
-
-                $this->parseStmts(
+                $this->parseLoop(
                     $assignments,
-                    $statement->children['stmts'],
+                    $statement,
                     $instructionCount,
-                    self::RECORD_ASSIGNS
+                    $loopFlag
                 );
-                $shadowAssignments = $assignments;
-                // Now we know if there are dangling assignments
-                $shadowCount = 0;
-                $this->parseStmts(
-                    $shadowAssignments,
-                    $statement->children['stmts'],
-                    $shadowCount,
-                    self::DONT_RECORD_ASSIGNS
-                );
-                $assignments = $shadowAssignments;
-                // Run trough loop conditions one more time in case we are
-                // assigning in the loop scope and using that as a condition for
-                // looping (issue #4)
-                $this->parseCond($assignments, $statement, $instructionCount);
                 continue;
             }
 
