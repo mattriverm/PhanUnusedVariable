@@ -444,6 +444,15 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                 $this->parseCond($assignments, $statement, $instructionCount);
                 $this->parseExpr($assignments, $statement, $instructionCount);
 
+                if (\ast\AST_FOR === $statement->kind) {
+                    $this->parseStmts(
+                        $assignments,
+                        $statement->children['init'],
+                        $instructionCount,
+                        self::RECORD_ASSIGNS
+                    );
+                }
+
                 $this->parseStmts(
                     $assignments,
                     $statement->children['stmts'],
