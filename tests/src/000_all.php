@@ -450,3 +450,27 @@ function testBranchInLoop() {
         }
     }   
 }
+
+// Arrays
+// Issue #14
+
+function testAssignToArray() {
+    $validate = [];
+    $validate['a'] = 'b';
+}
+
+function testAssignToArrayInLoop()
+{
+    $b = ['c' => 'v'];
+    $a = ['b' => $b];
+    $validate = [];
+    foreach ($a as $v) {
+        $validate[$a[$b[$v]]] = 1;
+    }
+}
+function testAssignNestedDim() {
+    $a = [];
+    $b = 'a';
+    $c = 1;
+    $a['AP'][$b] = (string) $c;
+}

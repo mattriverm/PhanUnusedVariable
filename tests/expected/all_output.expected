@@ -13,6 +13,9 @@ src/000_all.php:273 PhanPluginUnusedVariable Variable is never used: $eleven
 src/000_all.php:295 PhanPluginUnusedVariable Variable is never used: $twelwe
 src/000_all.php:327 PhanPluginUnusedVariable Variable is never used: $thirteen
 src/000_all.php:437 PhanPluginUnusedVariable Variable is never used: $fourteen
+src/000_all.php:459 PhanPluginUnusedVariable Variable is never used: $validate
+src/000_all.php:468 PhanPluginUnusedVariable Variable is never used: $validate
+src/000_all.php:475 PhanPluginUnusedVariable Variable is never used: $a
 src/001_func.php:7 PhanPluginUnusedVariable Variable is never used: $one
 src/001_func.php:8 PhanPluginUnusedVariable Variable is never used: $two
 src/001_func.php:25 PhanPluginUnusedMethodArgument Parameter is never used: $three

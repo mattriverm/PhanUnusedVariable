@@ -345,7 +345,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             }
 
             // We dont want to track assignments second time through a loop
-            if (isset($node->children['var']->children['name']) && !$loopFlag) {
+            if (\ast\AST_VAR === $node->children['var']->kind && !$loopFlag) {
                 $instructionCount++;
                 $this->assignSingle(
                     $assignments,
@@ -354,6 +354,13 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                     $node->children['var']->children['name']
                 );
 
+                return true;
+            }
+
+            if (\ast\AST_DIM === $node->children['var']->kind) {
+                if (!$loopFlag) {
+                    $this->parseDim($assignments, $node->children['var'], $instructionCount);
+                }
                 return true;
             }
         }
@@ -395,6 +402,33 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         }
 
         return false;
+    }
+
+    private function parseDim(
+        array &$assignments,
+        Node $node,
+        int &$instructionCount
+    ) {
+        $instructionCount++;
+        $expr = $node->children['expr'];
+        $dim = $node->children['dim'];
+        if ($dim instanceof Node) {
+            $this->tryVarUse($assignments, $dim, $instructionCount);
+            $this->recurseToFindVarUse($assignments, $dim, $instructionCount);
+        }
+        if ($expr->kind !== \ast\AST_VAR) {
+            // AST_STATIC_PROP or AST_PROP which we dont care about at the moment
+            if ($expr->kind === \ast\AST_DIM) {
+                $this->parseDim($assignments, $expr, $instructionCount);
+            }
+            return;
+        }
+        $this->assignSingle(
+            $assignments,
+            $expr,
+            $instructionCount,
+            $expr->children['name']
+        );
     }
 
     const LOOPS_SET = [
