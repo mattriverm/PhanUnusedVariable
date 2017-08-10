@@ -6,6 +6,7 @@ src/000_all.php:68 PhanPluginUnusedVariable Variable is never used: $five
 src/000_all.php:124 PhanPluginUnusedVariable Variable is never used: $six
 src/000_all.php:156 PhanPluginUnusedVariable Variable is never used: $seven
 src/000_all.php:167 PhanPluginUnusedVariable Variable is never used: $eight
+src/000_all.php:203 PhanPluginUnusedVariable Variable is never used: $b
 src/000_all.php:207 PhanPluginUnusedVariable Variable is never used: $nine
 src/000_all.php:251 PhanPluginUnusedVariable Variable is never used: $ten
 src/000_all.php:273 PhanPluginUnusedVariable Variable is never used: $eleven
@@ -23,4 +24,7 @@ src/006_references.php:14 PhanPluginUnusedMethodArgument Parameter is never used
 src/006_references.php:35 PhanPluginUnnecessaryReference $sixteen is a reference to $seventeen, but $seventeen is never used
 src/006_references.php:37 PhanPluginUnusedVariable Variable is never used: $sixteen
 src/006_references.php:71 PhanPluginUnnecessaryReference $eighteen is a reference to $nineteen, but $nineteen is never used
+src/006_references.php:104 PhanPluginUnusedVariable Variable is never used: $secName
 src/007_loops.php:18 PhanPluginUnusedVariable Variable is never used: $i
+src/007_loops.php:26 PhanPluginUnusedVariable Variable is never used: $k
+src/007_loops.php:26 PhanPluginUnusedVariable Variable is never used: $v

@@ -19,3 +19,11 @@ function forloop007_3(int $start) {
         printf("i=%s\n", $start);
     }
 }
+
+
+function foreachloop007_1() {
+    $a = ['a' => 'b'];
+    foreach ($a as $k => $v) {
+        echo count($a);
+    }
+}

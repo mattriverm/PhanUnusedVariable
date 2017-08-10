@@ -428,7 +428,6 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
 
             // Reset the instruction count and then run the loop again
             if (array_key_exists($statement->kind, self::LOOPS_SET)) {
-                // Parse the value and keep track of it
                 if (\ast\AST_FOREACH === $statement->kind) {
                     if (\ast\AST_REF === $statement->children['value']->kind ?? 0) {
                         $this->references[$statement->children['value']->children['var']->children['name']] = [
@@ -438,6 +437,22 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                             'reference' => true,
                             'used' => false
                         ];
+                    }
+                    if (\ast\AST_VAR === $statement->children['value']->kind ?? 0) {
+                        $this->assignSingle(
+                            $assignments,
+                            $statement->children['value'],
+                            $instructionCount,
+                            $statement->children['value']->children['name']
+                        );
+                    }
+                    if (!is_null($statement->children['key'])) {
+                        $this->assignSingle(
+                            $assignments,
+                            $statement->children['key'],
+                            $instructionCount,
+                            $statement->children['key']->children['name']
+                        );
                     }
                 }
 
