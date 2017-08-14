@@ -343,16 +343,16 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
     const RECORD_ASSIGNS = false;
     const DONT_RECORD_ASSIGNS = true;
 
-    /** @var array */
+    /** @var array[] TODO: Document the type of data structure used */
     protected $references = [];
 
-    /** @var array references found in parameters */
+    /** @var array[] references found in parameters */
     protected $param_references = [];
 
-    /** @var array */
+    /** @var array[] TODO: Document the type of data structure used */
     protected $reverse_references = [];
 
-    /** @var array */
+    /** @var string[] */
     protected $statics = [];
 
     /**
@@ -640,6 +640,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                     'used' => $used
                 ];
 
+                // TODO: Check `= &$array['dim']`
                 if (\ast\AST_VAR === $node->children['expr']->kind) {
                     $this->reverse_references[$node->children['expr']->children['name']] = $name;
                 }
@@ -693,12 +694,13 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
     ) {
         if (\ast\AST_FOREACH === $node->kind) {
             if (\ast\AST_REF === $node->children['value']->kind ?? 0) {
-                $this->references[$node->children['value']->children['var']->children['name']] = [
+                $name = $node->children['value']->children['var']->children['name'];
+                $this->references[$name] = $assignments[$name] = [
                     'line' => $node->lineno,
                     'key' => $instructionCount,
                     'param' => false,
                     'reference' => true,
-                    'used' => false
+                    'used' => true,  // This manipulates an array, so assume it's used.
                 ];
             }
             if (\ast\AST_VAR === $node->children['value']->kind ?? 0) {
