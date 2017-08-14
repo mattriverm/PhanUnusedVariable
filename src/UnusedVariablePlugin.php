@@ -947,8 +947,9 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
 
         if (count($assignments) > 0) {
             foreach ($assignments as $param => $data) {
-                if (Variable::isSuperglobalVariableWithName($param)) {
+                if (Variable::isSuperglobalVariableWithName($param) || $param === 'this') {
                     // Don't warn about statements such as `$_SESSION['prop'] = $value`;
+                    // Don't warn about $this['prop'] = 'x' (for objects that implement ArrayAccess)
                     continue;
                 }
                 if ($data['param'] === true) {
