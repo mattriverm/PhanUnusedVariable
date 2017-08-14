@@ -33,3 +33,9 @@ src/007_loops.php:26 PhanPluginUnusedVariable Variable is never used: $k
 src/007_loops.php:26 PhanPluginUnusedVariable Variable is never used: $v
 src/007_loops.php:32 PhanPluginUnusedMethodArgument Parameter is never used: $start
 src/007_loops.php:33 PhanPluginUnusedVariable Variable is never used: $i
+src/016_globals.php:6 PhanPluginUnusedVariable Variable is never used: $_ENVNOTSUPERGLOBAL
+src/017_this.php:5 PhanPluginUnusedMethodArgument Parameter is never used: $key
+src/017_this.php:6 PhanPluginUnusedMethodArgument Parameter is never used: $key
+src/017_this.php:6 PhanPluginUnusedMethodArgument Parameter is never used: $value
+src/017_this.php:7 PhanPluginUnusedMethodArgument Parameter is never used: $key
+src/017_this.php:8 PhanPluginUnusedMethodArgument Parameter is never used: $key
