@@ -752,7 +752,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             self::DONT_RECORD_ASSIGNS
         );
         $assignments = $shadowAssignments;
-        // Run trough loop conditions one more time in case we are
+        // Run through loop conditions one more time in case we are
         // assigning in the loop scope and using that as a condition for
         // looping (issue #4)
         $this->parseCond($assignments, $node, $instructionCount);
