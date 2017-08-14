@@ -27,3 +27,11 @@ function foreachloop007_1() {
         echo count($a);
     }
 }
+
+// Should not throw, should warn about $i and $start
+function forloop007_4(int $start) {
+    $i = 0;
+    for (; ; ) {
+        break;
+    }
+}

@@ -31,3 +31,5 @@ src/006_references.php:104 PhanPluginUnusedVariable Variable is never used: $sec
 src/007_loops.php:18 PhanPluginUnusedVariable Variable is never used: $i
 src/007_loops.php:26 PhanPluginUnusedVariable Variable is never used: $k
 src/007_loops.php:26 PhanPluginUnusedVariable Variable is never used: $v
+src/007_loops.php:32 PhanPluginUnusedMethodArgument Parameter is never used: $start
+src/007_loops.php:33 PhanPluginUnusedVariable Variable is never used: $i
