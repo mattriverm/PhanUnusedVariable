@@ -568,17 +568,17 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             $this->parseExpr($assignments, $node, $instructionCount);
 
             $var_node = $node->children['var'];
-            if ($var_node->kind === \ast\AST_ARRAY) {
+            if ($var_node->kind === \ast\AST_ARRAY && !$loopFlag) {
                 foreach ($var_node->children as $elem_node) {
                     if ($elem_node === null) {
                         continue;  // e.g. "list(, $x) = expr"
                     }
                     assert($elem_node->kind === \ast\AST_ARRAY_ELEM);
-                    $var_node = $elem_node->children['value'];
-                    if ($var_node->kind !== \ast\AST_VAR) {
+                    $inner_var_node = $elem_node->children['value'];
+                    if ($inner_var_node->kind !== \ast\AST_VAR) {
                         continue;
                     }
-                    $var_name = $var_node->children['name'];
+                    $var_name = $inner_var_node->children['name'];
                     if (!is_string($var_name) || !$var_name) {
                         // e.g. list(${0}) = $v, list($$var) = $v
                         continue;
@@ -588,13 +588,14 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                         $assignments,
                         $node,
                         $instructionCount,
-                        $var_node->children['name']
+                        $var_name
                     );
                 }
                 return true;
             }
 
-            // We dont want to track assignments second time through a loop
+            // We don't want to track assignments second time through a loop
+            // TODO: simplify checks of !$loopFlag
             if (\ast\AST_VAR === $node->children['var']->kind && !$loopFlag) {
                 $instructionCount++;
                 $this->assignSingle(
@@ -668,7 +669,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             $this->recurseToFindVarUse($assignments, $dim, $instructionCount);
         }
         if ($expr->kind !== \ast\AST_VAR) {
-            // AST_STATIC_PROP or AST_PROP which we dont care about at the moment
+            // AST_STATIC_PROP or AST_PROP which we don't care about at the moment
             if ($expr->kind === \ast\AST_DIM) {
                 $this->parseDim($assignments, $expr, $instructionCount);
             }
