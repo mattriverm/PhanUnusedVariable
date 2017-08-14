@@ -22,6 +22,7 @@ use Phan\Analysis\BlockExitStatusChecker;
 use Phan\Exception\CodeBaseException;
 use Phan\Language\Context;
 use Phan\Language\Element\FunctionInterface;
+use Phan\Language\Element\Variable;
 use Phan\Language\UnionType;
 use Phan\PluginV2;
 use Phan\PluginV2\AnalyzeNodeCapability;
@@ -944,6 +945,10 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
 
         if (count($assignments) > 0) {
             foreach ($assignments as $param => $data) {
+                if (Variable::isSuperglobalVariableWithName($param)) {
+                    // Don't warn about statements such as `$_SESSION['prop'] = $value`;
+                    continue;
+                }
                 if ($data['param'] === true) {
                     $shouldWarn = false;
                     if ($data['reference']) {
