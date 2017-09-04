@@ -115,6 +115,27 @@ class testReferences
 function foo(string &$outputArg) {
     $outputArg = str_replace("_", "-", $outputArg);
 }
+
+// Issue #15
+function testAssignDimRef(array $values) {
+    foreach ($values as &$val) {
+        $val['x'] = $val['x'] * 2;  // warns unexpectedly about PhanPluginUnusedVariable
+    }   
+    var_export($values);
+}
+function testAssignRegularRef(array $values) {
+    foreach ($values as &$val) {
+        $val = $val * 2;  // correctly does not warn
+    }   
+    var_export($values);
+}
+function testAssignDimRef2(array $values) {
+    foreach ($values as &$val) {
+        $val['x'] = 3;  // warns unexpectedly about PhanPluginUnusedVariable
+    }   
+    var_export($values);
+}
+
 // @todo
 // class testIncremenetButNeverReturnedOrUsed {
 //     public function pub()
