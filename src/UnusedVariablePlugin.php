@@ -735,13 +735,15 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                         }
 
                         if ($shouldWarn) {
-                            $this->emitPluginIssue(
-                                $this->code_base,
-                                clone($this->context)->withLineNumberStart($data['line']),
-                                'PhanPluginUnusedVariable',
-                                'Variable is never used: ${VARIABLE}',
-                                [$param]
-                            );
+                            if ($this->shouldWarnAboutParameter($param, $node)) {
+                                $this->emitPluginIssue(
+                                    $this->code_base,
+                                    clone($this->context)->withLineNumberStart($data['line']),
+                                    'PhanPluginUnusedVariable',
+                                    'Variable is never used: ${VARIABLE}',
+                                    [$param]
+                                );
+                            }
                         }
                     }
                 }
