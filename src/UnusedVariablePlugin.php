@@ -481,11 +481,13 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             return;
         }
 
+        if (isset($this->references[$name]) && isset($assignments[$name])) {
+            $assignments[$name]['used'] = true;
+        }
+
         if ($instructionCount > $assignments[$name]['key']) {
             // Dont unset references, only mark them as used
-            if (isset($this->references[$name])) {
-                $assignments[$name]['used'] = true;
-            } else {
+            if (!isset($this->references[$name])) {
                 unset($assignments[$name]);
             }
 
@@ -517,7 +519,13 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             return;
         }
 
-        unset($assignments[$name]);
+        if (isset($this->references[$name]) && isset($assignments[$name])) {
+            $assignments[$name]['used'] = true;
+        }
+
+        if (!isset($this->references[$name])) {
+            unset($assignments[$name]);
+        }
     }
 
     private function assignSingle(array &$assignments, Node $node, int $instructionCount, string $name)
@@ -609,9 +617,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             }
 
             if (\ast\AST_DIM === $node->children['var']->kind) {
-                if (!$loopFlag) {
-                    $this->parseDim($assignments, $node->children['var'], $instructionCount);
-                }
+                $this->parseDim($assignments, $node->children['var'], $instructionCount, $loopFlag);
                 return true;
             }
         }
@@ -659,7 +665,8 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
     private function parseDim(
         array &$assignments,
         Node $node,
-        int &$instructionCount
+        int &$instructionCount,
+        bool $loopFlag
     ) {
         $instructionCount++;
         $expr = $node->children['expr'];
@@ -671,16 +678,23 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         if ($expr->kind !== \ast\AST_VAR) {
             // AST_STATIC_PROP or AST_PROP which we don't care about at the moment
             if ($expr->kind === \ast\AST_DIM) {
-                $this->parseDim($assignments, $expr, $instructionCount);
+                $this->parseDim($assignments, $expr, $instructionCount, $loopFlag);
             }
             return;
         }
-        $this->assignSingle(
-            $assignments,
-            $expr,
-            $instructionCount,
-            $expr->children['name']
-        );
+        $name = $expr->children['name'];
+        if (array_key_exists($name, $this->references) && array_key_exists($name, $assignments)) {
+            $assignments[$name]['used'] = true;
+        }
+
+        if (!$loopFlag) {
+            $this->assignSingle(
+                $assignments,
+                $expr,
+                $instructionCount,
+                $name
+            );
+        }
     }
 
     const LOOPS_SET = [
@@ -699,13 +713,18 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         if (\ast\AST_FOREACH === $node->kind) {
             if (\ast\AST_REF === $node->children['value']->kind ?? 0) {
                 $name = $node->children['value']->children['var']->children['name'];
-                $this->references[$name] = $assignments[$name] = [
+                $this->references[$name] = [
                     'line' => $node->lineno,
                     'key' => $instructionCount,
                     'param' => false,
                     'reference' => true,
                     'used' => true,  // This manipulates an array, so assume it's used.
                 ];
+                // The expr being iterated over is a variable, value should go into
+                // reverse references
+                if (\ast\AST_VAR === $node->children['expr']->kind ?? 0) {
+                    $this->reverse_references[$node->children['expr']->children['name']] = $name;
+                }
             }
             if (\ast\AST_VAR === $node->children['value']->kind ?? 0) {
                 $this->assignSingle(
