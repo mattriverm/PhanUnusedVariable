@@ -4,12 +4,14 @@
     "keywords": ["php"],
     "type": "project",
     "license": "Apache 2.0",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "authors": [
         {
             "name": "Mattias Forsberg"
         }
     ],
     "require-dev": {
-        "etsy/phan": "~0.9.3 || ~0.8.5"
+        "etsy/phan": "master"
     }
 }
