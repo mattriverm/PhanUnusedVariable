@@ -13,7 +13,6 @@ use Phan\PluginV2;
 use Phan\PluginV2\AnalyzeNodeCapability;
 use Phan\PluginV2\PluginAwareAnalysisVisitor;
 use ast\Node;
-use ast\Node\Decl;
 
 // By default, don't warn about parameters beginning with "$unused"
 // or about the variable $_
@@ -82,7 +81,7 @@ final class UnusedVariableReferenceAnnotatorVisitor extends PluginAwareAnalysisV
      * @return void
      * @override
      */
-    public function visitMethod(Decl $node) {
+    public function visitMethod(Node $node) {
          return (new UnusedVariableVisitor($this->code_base, $this->context))->visitMethod($node);
     }
 
@@ -92,7 +91,7 @@ final class UnusedVariableReferenceAnnotatorVisitor extends PluginAwareAnalysisV
      * @return void
      * @override
      */
-    public function visitFuncDecl(Decl $node) {
+    public function visitFuncDecl(Node $node) {
          return (new UnusedVariableVisitor($this->code_base, $this->context))->visitFuncDecl($node);
     }
 
@@ -102,7 +101,7 @@ final class UnusedVariableReferenceAnnotatorVisitor extends PluginAwareAnalysisV
      * @return void
      * @override
      */
-    public function visitClosure(Decl $node) {
+    public function visitClosure(Node $node) {
          return (new UnusedVariableVisitor($this->code_base, $this->context))->visitClosure($node);
     }
 }
@@ -111,7 +110,18 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
     const RECORD_ASSIGNS = false;
     const DONT_RECORD_ASSIGNS = true;
 
-    /** @var array */
+    const _DECL_KIND_SET = [
+        \ast\AST_FUNC_DECL => true,
+        \ast\AST_METHOD => true,
+        \ast\AST_CLASS => true,
+        \ast\AST_PROP_DECL => true,
+        \ast\AST_CLOSURE => true,
+        \ast\AST_CONST => true,
+        \ast\AST_CLASS_CONST_DECL => true,
+    ];
+
+
+    /** @var array[] */
     protected $references = [];
 
     /** @var array */
@@ -214,7 +224,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         $node,
         int $instructionCount
     ) {
-        if (!$node instanceof Node) {
+        if (!($node instanceof Node)) {
             return;
         }
 
@@ -232,13 +242,11 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             return;
         }
 
-        if (isset($this->references[$name]) && isset($assignments[$name])) {
-            $assignments[$name]['used'] = true;
-        }
-
         if ($instructionCount > $assignments[$name]['key']) {
             // Dont unset references, only mark them as used
-            if (!isset($this->references[$name])) {
+            if (isset($this->references[$name])) {
+                $assignments[$name]['used'] = true;
+            } else {
                 unset($assignments[$name]);
             }
 
@@ -265,18 +273,18 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         if (!$node instanceof Node) {
             return;
         }
+        $kind = $node->kind;
+        if (array_key_exists($kind, self::_DECL_KIND_SET)) {
+            // These are declarations, not variables.
+            // TODO: Instead of a blacklist, use a whitelist of node types.
+            return;
+        }
         $name = $node->children['name'] ?? null;
         if (!is_string($name)) {
             return;
         }
 
-        if (isset($this->references[$name]) && isset($assignments[$name])) {
-            $assignments[$name]['used'] = true;
-        }
-
-        if (!isset($this->references[$name])) {
-            unset($assignments[$name]);
-        }
+        unset($assignments[$name]);
     }
 
     private function assignSingle(array &$assignments, Node $node, int $instructionCount, string $name)
@@ -368,7 +376,9 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             }
 
             if (\ast\AST_DIM === $node->children['var']->kind) {
-                $this->parseDim($assignments, $node->children['var'], $instructionCount, $loopFlag);
+                if (!$loopFlag) {
+                    $this->parseDim($assignments, $node->children['var'], $instructionCount);
+                }
                 return true;
             }
         }
@@ -415,8 +425,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
     private function parseDim(
         array &$assignments,
         Node $node,
-        int &$instructionCount,
-        bool $loopFlag
+        int &$instructionCount
     ) {
         $instructionCount++;
         $expr = $node->children['expr'];
@@ -428,23 +437,16 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         if ($expr->kind !== \ast\AST_VAR) {
             // AST_STATIC_PROP or AST_PROP which we don't care about at the moment
             if ($expr->kind === \ast\AST_DIM) {
-                $this->parseDim($assignments, $expr, $instructionCount, $loopFlag);
+                $this->parseDim($assignments, $expr, $instructionCount);
             }
             return;
         }
-        $name = $expr->children['name'];
-        if (array_key_exists($name, $this->references) && array_key_exists($name, $assignments)) {
-            $assignments[$name]['used'] = true;
-        }
-
-        if (!$loopFlag) {
-            $this->assignSingle(
-                $assignments,
-                $expr,
-                $instructionCount,
-                $name
-            );
-        }
+        $this->assignSingle(
+            $assignments,
+            $expr,
+            $instructionCount,
+            $expr->children['name']
+        );
     }
 
     const LOOPS_SET = [
@@ -463,18 +465,13 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         if (\ast\AST_FOREACH === $node->kind) {
             if (\ast\AST_REF === $node->children['value']->kind ?? 0) {
                 $name = $node->children['value']->children['var']->children['name'];
-                $this->references[$name] = [
+                $this->references[$name] = $assignments[$name] = [
                     'line' => $node->lineno,
                     'key' => $instructionCount,
                     'param' => false,
                     'reference' => true,
                     'used' => false
                 ];
-                // The expr being iterated over is a variable, value should go into
-                // reverse references
-                if (\ast\AST_VAR === $node->children['expr']->kind ?? 0) {
-                    $this->reverse_references[$node->children['expr']->children['name']] = $name;
-                }
             }
             if (\ast\AST_VAR === $node->children['value']->kind ?? 0) {
                 $this->assignSingle(
@@ -562,11 +559,15 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
 
             foreach ($statement->children as $name => $subStmt) {
                 if ($subStmt instanceof Node) {
-                    if (\ast\AST_STMT_LIST === $subStmt->kind) {
+                    $kind = $subStmt->kind;
+                    if (\ast\AST_STMT_LIST === $kind) {
+                        if (array_key_exists($statement->kind, self::NEW_SCOPE_KINDS)) {
+                            continue;
+                        }
                         $this->parseStmts($assignments, $subStmt, $instructionCount, $loopFlag);
                     }
 
-                    if (isset($subStmt->children['name'])) {
+                    if (!array_key_exists($kind, self::_DECL_KIND_SET) && isset($subStmt->children['name'])) {
                         $this->tryVarUse($assignments, $subStmt, $instructionCount);
                     } else {
                         $instructionCount++;
@@ -620,12 +621,12 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
     }
 
     /**
-     * @param Decl $node
+     * @param Node $node
      * A node to analyze
      *
      * @return void
      */
-    public function visitMethod(Decl $node)
+    public function visitMethod(Node $node)
     {
         // ast kinds
         // https://github.com/nikic/php-ast/blob/master/ast_data.c
@@ -633,34 +634,34 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
     }
 
     /**
-     * @param Decl $node
+     * @param Node $node
      * A node to analyze
      *
      * @return void
      */
-    public function visitClosure(Decl $node)
+    public function visitClosure(Node $node)
     {
         $this->analyzeMethod($node);
     }
 
     /**
-     * @param Decl $node
+     * @param Node $node
      * A node to analyze
      *
      * @return void
      */
-    public function visitFuncDecl(Decl $node)
+    public function visitFuncDecl(Node $node)
     {
         $this->analyzeMethod($node);
     }
 
     /**
-     * @param Decl $node
+     * @param Node $node
      * A node to analyze (AST_FUNC_DECL, AST_METHOD, or AST_CLOSURE)
      *
      * @return void
      */
-    public function analyzeMethod(Decl $node)
+    public function analyzeMethod(Node $node)
     {
         //\Phan\Debug::printNode($node);
 
@@ -751,13 +752,13 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         }
     }
 
-    private function shouldWarnAboutParameter(string $param, Decl $decl) : bool
+    private function shouldWarnAboutParameter(string $param, Node $decl) : bool
     {
         // Don't warn about $_ or $unusedVariable or $unused_variable
         if (preg_match(WHITELISTED_UNUSED_PARAM_NAME, $param) > 0) {
             return false;
         }
-        $docComment = $decl->docComment ?? '';
+        $docComment = $decl->children['docComment'] ?? '';
         if (!$docComment) {
             return true;
         }

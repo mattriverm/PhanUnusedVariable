@@ -35,9 +35,24 @@ src/007_loops.php:26 PhanPluginUnusedVariable Variable is never used: $k
 src/007_loops.php:26 PhanPluginUnusedVariable Variable is never used: $v
 src/007_loops.php:32 PhanPluginUnusedMethodArgument Parameter is never used: $start
 src/007_loops.php:33 PhanPluginUnusedVariable Variable is never used: $i
+src/009_complex_expr.php:3 PhanPluginUnusedVariable Variable is never used: $count
+src/011_foreach.php:13 PhanPluginUnusedVariable Variable is never used: $minKey
+src/012_multipleuses.php:9 PhanPluginUnusedVariable Variable is never used: $y
+src/013_closure.php:10 PhanPluginUnusedClosureUseArgument Closure use variable is never used: $c
+src/013_closure_simple.php:6 PhanPluginUnusedClosureUseArgument Closure use variable is never used: $c
+src/015loop.php:3 PhanRedefineFunction Function testAssignDimRef defined at src/015loop.php:3 was previously defined at src/006_references.php:120
+src/015loop.php:9 PhanRedefineFunction Function testAssignRegularRef defined at src/015loop.php:9 was previously defined at src/006_references.php:126
+src/015loop.php:15 PhanRedefineFunction Function testAssignDimRef2 defined at src/015loop.php:15 was previously defined at src/006_references.php:132
 src/016_globals.php:6 PhanPluginUnusedVariable Variable is never used: $_ENVNOTSUPERGLOBAL
 src/017_this.php:5 PhanPluginUnusedMethodArgument Parameter is never used: $key
 src/017_this.php:6 PhanPluginUnusedMethodArgument Parameter is never used: $key
 src/017_this.php:6 PhanPluginUnusedMethodArgument Parameter is never used: $value
 src/017_this.php:7 PhanPluginUnusedMethodArgument Parameter is never used: $key
 src/017_this.php:8 PhanPluginUnusedMethodArgument Parameter is never used: $key
+src/018_loopvar.php:10 PhanPluginUnusedVariable Variable is never used: $return
+src/018_loopvar.php:11 PhanPluginUnusedVariable Variable is never used: $isFirst
+src/019_dowhile.php:7 PhanPluginUnusedVariable Variable is never used: $x
+src/021_usage.php:12 PhanPluginUnusedVariable Variable is never used: $obj
+src/022_arrayaccess.php:3 PhanRedefineFunction Function test defined at src/022_arrayaccess.php:3 was previously defined at src/010_lose_reference.php:3
+src/022_arrayaccess.php:4 PhanPluginUnusedMethodArgument Parameter is never used: $x
+src/023_isset_in_loop.php:8 PhanPluginUnusedVariable Variable is never used: $checked
