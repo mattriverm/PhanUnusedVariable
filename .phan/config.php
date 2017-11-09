@@ -102,7 +102,7 @@ return [
     // your application should be included in this list.
     'directory_list' => [
         'src',
-        'vendor/etsy/phan/src',
+        'vendor/phan/phan/src',
     ],
 
     // List of case-insensitive file extensions supported by Phan.
@@ -126,8 +126,8 @@ return [
 
     // A list of plugin files to execute
     'plugins' => [
-        'vendor/etsy/phan/.phan/plugins/DemoPlugin.php',
-        'vendor/etsy/phan/.phan/plugins/DollarDollarPlugin.php',
+        'vendor/phan/phan/.phan/plugins/DemoPlugin.php',
+        'vendor/phan/phan/.phan/plugins/DollarDollarPlugin.php',
         // 'vendor/etsy/phan/.phan/plugins/UnreachableCodePlugin.php',
         // NOTE: src/Phan/Language/Internal/FunctionSignatureMap.php mixes value without key as return type with values having keys deliberately.
         // '.phan/plugins/DuplicateArrayKeyPlugin.php',

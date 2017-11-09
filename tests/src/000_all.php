@@ -134,7 +134,7 @@ class testAssignmentInCondAndNeverUsed {
 class testForeach {
     public function pub()
     {
-        $puba = ['a', 'b', 'c'];
+        $puba = [['a'], ['b'], ['c']];
 
         $pub = array_shift($puba);
 
@@ -448,7 +448,7 @@ function testBranchInLoop() {
         if (rand() % 2 > 0) {  // the branch seems to effect detection
            $sleepTime = $sleepTime * 2;  // erroneously warns
         }
-    }   
+    }
 }
 
 // Arrays

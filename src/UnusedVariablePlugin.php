@@ -614,12 +614,15 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
             // TODO: simplify checks of !$loopFlag
             if (\ast\AST_VAR === $node->children['var']->kind && !$loopFlag) {
                 $instructionCount++;
-                $this->assignSingle(
-                    $assignments,
-                    $node,
-                    $instructionCount,
-                    $node->children['var']->children['name']
-                );
+                $name = $node->children['var']->children['name'] ?? null;
+                if (is_string($name)) {
+                    $this->assignSingle(
+                        $assignments,
+                        $node,
+                        $instructionCount,
+                        $name
+                    );
+                }
 
                 return true;
             }
@@ -635,8 +638,8 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         // If this is a reference variable
         if (\ast\AST_ASSIGN_REF === $node->kind) {
             $this->parseExpr($this->references, $node, $instructionCount);
-            if (isset($node->children['var']->children['name']) && !$loopFlag) {
-                $name = $node->children['var']->children['name'];
+            if (!$loopFlag) {
+                $name = $node->children['var']->children['name'] ?? null;
                 if (!is_string($name) || !$name) {
                     return false;
                 }
