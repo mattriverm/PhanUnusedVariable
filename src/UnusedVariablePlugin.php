@@ -32,9 +32,10 @@ use Phan\PluginV2\PluginAwareAnalysisVisitor;
 use ast\Node;
 
 // By default, don't warn about parameters beginning with "$unused"
-// or about the parameter "$_"
+// or about the parameter "$_".
+// And don't warn about variables beginning with RAII. (Resource Acquisition Is Initialization)
 const WHITELISTED_UNUSED_PARAM_NAME = '/^(_$|unused)/i';
-const WHITELISTED_UNUSED_VARIABLE_NAME = '/^(_$|unused)/i';
+const WHITELISTED_UNUSED_VARIABLE_NAME = '/^(_$|unused|raii)/i';
 
 /**
  * This file checks for unused variables in

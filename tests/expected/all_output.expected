@@ -43,3 +43,4 @@ src/017_this.php:6 PhanPluginUnusedMethodArgument Parameter is never used: $key
 src/017_this.php:6 PhanPluginUnusedMethodArgument Parameter is never used: $value
 src/017_this.php:7 PhanPluginUnusedMethodArgument Parameter is never used: $key
 src/017_this.php:8 PhanPluginUnusedMethodArgument Parameter is never used: $key
+src/018_raii.php:10 PhanPluginUnusedVariable Variable is never used: $value
