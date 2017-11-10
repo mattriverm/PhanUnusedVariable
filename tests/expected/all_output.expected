@@ -1,6 +1,6 @@
 src/000_all.php:5 PhanPluginUnusedVariable Variable is never used: $one
 src/000_all.php:6 PhanPluginUnusedVariable Variable is never used: $two
-src/000_all.php:27 PhanPluginUnusedMethodArgument Parameter is never used: $three
+src/000_all.php:27 PhanPluginUnusedPublicMethodArgument Parameter is never used: $three
 src/000_all.php:54 PhanPluginUnusedVariable Variable is never used: $four
 src/000_all.php:68 PhanPluginUnusedVariable Variable is never used: $five
 src/000_all.php:124 PhanPluginUnusedVariable Variable is never used: $six
@@ -20,12 +20,12 @@ src/000_all.php:468 PhanTypeMismatchDimFetch When fetching an array index from a
 src/000_all.php:475 PhanPluginUnusedVariable Variable is never used: $a
 src/001_func.php:7 PhanPluginUnusedVariable Variable is never used: $one
 src/001_func.php:8 PhanPluginUnusedVariable Variable is never used: $two
-src/001_func.php:25 PhanPluginUnusedMethodArgument Parameter is never used: $three
+src/001_func.php:25 PhanPluginUnusedPublicMethodArgument Parameter is never used: $three
 src/002_closure.php:7 PhanPluginUnusedVariable Variable is never used: $one
 src/002_closure.php:8 PhanPluginUnusedVariable Variable is never used: $two
-src/002_closure.php:24 PhanPluginUnusedMethodArgument Parameter is never used: $three
+src/002_closure.php:24 PhanPluginUnusedPublicMethodArgument Parameter is never used: $three
 src/005_static_variables.php:24 PhanPluginUnusedVariable Variable is never used: $initialized
-src/006_references.php:14 PhanPluginUnusedMethodArgument Parameter is never used: $fifteen
+src/006_references.php:14 PhanPluginUnusedPublicMethodArgument Parameter is never used: $fifteen
 src/006_references.php:35 PhanPluginUnnecessaryReference $sixteen is a reference to $seventeen, but $seventeen is never used
 src/006_references.php:37 PhanPluginUnusedVariable Variable is never used: $sixteen
 src/006_references.php:71 PhanPluginUnnecessaryReference $eighteen is a reference to $nineteen, but $nineteen is never used
@@ -33,14 +33,16 @@ src/006_references.php:104 PhanPluginUnusedVariable Variable is never used: $sec
 src/007_loops.php:18 PhanPluginUnusedVariable Variable is never used: $i
 src/007_loops.php:26 PhanPluginUnusedVariable Variable is never used: $k
 src/007_loops.php:26 PhanPluginUnusedVariable Variable is never used: $v
-src/007_loops.php:32 PhanPluginUnusedMethodArgument Parameter is never used: $start
+src/007_loops.php:32 PhanPluginUnusedPublicMethodArgument Parameter is never used: $start
 src/007_loops.php:33 PhanPluginUnusedVariable Variable is never used: $i
 src/013_closure.php:10 PhanPluginUnusedClosureUseArgument Closure use variable is never used: $c
 src/013_closure_simple.php:6 PhanPluginUnusedClosureUseArgument Closure use variable is never used: $c
 src/016_globals.php:6 PhanPluginUnusedVariable Variable is never used: $_ENVNOTSUPERGLOBAL
-src/017_this.php:5 PhanPluginUnusedMethodArgument Parameter is never used: $key
-src/017_this.php:6 PhanPluginUnusedMethodArgument Parameter is never used: $key
-src/017_this.php:6 PhanPluginUnusedMethodArgument Parameter is never used: $value
-src/017_this.php:7 PhanPluginUnusedMethodArgument Parameter is never used: $key
-src/017_this.php:8 PhanPluginUnusedMethodArgument Parameter is never used: $key
+src/017_this.php:5 PhanPluginUnusedPublicMethodArgument Parameter is never used: $key
+src/017_this.php:6 PhanPluginUnusedPublicMethodArgument Parameter is never used: $key
+src/017_this.php:6 PhanPluginUnusedPublicMethodArgument Parameter is never used: $value
+src/017_this.php:7 PhanPluginUnusedPublicMethodArgument Parameter is never used: $key
+src/017_this.php:8 PhanPluginUnusedPublicMethodArgument Parameter is never used: $key
 src/018_raii.php:10 PhanPluginUnusedVariable Variable is never used: $value
+src/019_final.php:4 PhanPluginUnusedPublicFinalMethodArgument Parameter is never used: $arg
+src/019_final.php:9 PhanPluginUnusedProtectedFinalMethodArgument Parameter is never used: $arg

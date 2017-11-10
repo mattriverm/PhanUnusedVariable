@@ -942,6 +942,49 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
     }
 
     /**
+     * @param Node $node an ast\AST_METHOD node
+     * @param Context $context used to get class in context to check if final
+     * @return string such as PhanUnusedPrivateMethodArgument, etc.
+     */
+    private function getIssueNameForMethodNode(Node $node, Context $context) : string
+    {
+        $fields = '';
+        $flags = $node->flags;
+        if (($flags & ast\flags\MODIFIER_PRIVATE) !== 0) {
+            $fields = 'Private';
+        } else if (($flags & ast\flags\MODIFIER_PROTECTED) !== 0) {
+            $fields = 'Protected';
+        } else {
+            $fields = 'Public';
+        }
+        if ($this->isFinalBasedOnFlagsAndContext($flags, $context)) {
+            $fields .= 'Final';
+        }
+        return "PhanPluginUnused{$fields}MethodArgument";  // PhanPluginUnusedPublicMethodArgument, PhanPluginUnusedPublicFinalMethodArgument, etc.
+    }
+
+    /**
+     * @param int $flags flags of an ast\AST_METHOD node
+     * @param Context $context used to get class in context to check if final
+     * @return bool true if this is a final method
+     */
+    private function isFinalBasedOnFlagsAndContext(int $flags, Context $context) : bool
+    {
+        if (($flags & ast\flags\MODIFIER_FINAL) !== 0) {
+            return true;
+        } else if ($context->isInClassScope()) {
+            try {
+                $class = $context->getClassInScope($this->code_base);
+                return $class->isFinal();
+            } catch (CodeBaseException $e) {
+                // ignore
+            }
+        }
+        return false;
+    }
+
+
+    /**
      * @param Node $node
      * A node to analyze (AST_FUNC_DECL, AST_METHOD, or AST_CLOSURE)
      *
@@ -989,7 +1032,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                             $this->emitPluginIssue(
                                 $this->code_base,
                                 clone($this->context)->withLineNumberStart($data['line']),
-                                'PhanPluginUnusedMethodArgument',
+                                self::getIssueNameForMethodNode($node, $this->context),
                                 'Parameter is never used: ${PARAMETER}',
                                 [$param]
                             );
