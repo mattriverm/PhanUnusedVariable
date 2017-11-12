@@ -438,8 +438,6 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                         if (array_key_exists($condNode->kind, self::RELATIONAL_OPS)) {
                             $this->parseRelationalOp($assignments, $condNode, $instructionCount);
                         }
-                    } elseif ($key == 'args') {
-                        $this->parseStmts($assignments, $condNode, $instructionCount);
                     }
                 }
             }
