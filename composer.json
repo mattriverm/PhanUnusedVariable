@@ -12,6 +12,6 @@
         }
     ],
     "require-dev": {
-        "etsy/phan": "master"
+        "phan/phan": "master"
     }
 }
