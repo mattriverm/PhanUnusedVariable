@@ -4,7 +4,7 @@ class testBeing {
     public function add(int $my_param):int {
         $one = "hello world";
         $two = $my_param;
-        $my_param+1;
+        echo $my_param+1;
         return $my_param;
     }
 
@@ -336,15 +336,15 @@ class testCountingInDo
         } while ($b = array_shift($a));
     }
 }
-
 // This said statement is never used but should be ok
 class testAssignmentInWhileCondition
 {
-    public function all(): array
+    /** @param object $fetcher */
+    public function all($fetcher): array
     {
         $collection = [];
-        $statement = 'select * from users';
-        while ($row = $statement->fetch()) {
+
+        while ($row = $fetcher->fetch()) {
             $collection[] = $row;
         }
 
@@ -461,8 +461,8 @@ function testAssignToArray() {
 
 function testAssignToArrayInLoop()
 {
-    $b = ['c' => 'v'];
-    $a = ['b' => $b];
+    $b = ['c' => 'c'];
+    $a = ['b' => 'c'];
     $validate = [];
     foreach ($a as $v) {
         $validate[$a[$b[$v]]] = 1;
