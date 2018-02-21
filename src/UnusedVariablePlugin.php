@@ -17,15 +17,11 @@
  * checks on a node based on its kind.
  */
 
-use Phan\AST\AnalysisVisitor;
 use Phan\AST\ContextNode;
-use Phan\CodeBase;
-use Phan\Analysis\BlockExitStatusChecker;
 use Phan\Exception\CodeBaseException;
 use Phan\Language\Context;
 use Phan\Language\Element\FunctionInterface;
 use Phan\Language\Element\Variable;
-use Phan\Language\UnionType;
 use Phan\PluginV2;
 use Phan\PluginV2\AnalyzeNodeCapability;
 use Phan\PluginV2\PluginAwareAnalysisVisitor;
