@@ -1,5 +1,5 @@
 # PhanUnusedVariable
-A plugin for etsy/phan that tries to detect unused variables in class methods.
+A plugin for phan/phan that tries to detect unused variables in class methods.
 
 ## Overview
 This is plugin is in a very early WIP stage.
