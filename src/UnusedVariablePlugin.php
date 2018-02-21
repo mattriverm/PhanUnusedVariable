@@ -230,11 +230,6 @@ final class UnusedVariableReferenceAnnotatorVisitor extends PluginAwareAnalysisV
         if (count($unknown_argument_set) === 0) {
             return;
         }
-        // Get the name of the static class being referenced
-        $static_class = '';
-        if ($node->children['class']->kind == \ast\AST_NAME) {
-            $static_class = $node->children['class']->children['name'];
-        }
 
         try {
             $method = (new ContextNode(
@@ -426,7 +421,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
         foreach ($node->children['cond'] as $cond) {
             if (is_array($cond)) {
                 // TODO: Use node kind instead.
-                foreach ($cond as $key => $condNode) {
+                foreach ($cond as $condNode) {
                     $this->tryVarUse($assignments, $condNode, $instructionCount);
                     $this->parseExpr($assignments, $condNode, $instructionCount);
 
@@ -707,8 +702,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
     private function parseLoop(
         array &$assignments,
         Node $node,
-        int &$instructionCount,
-        bool $loopFlag = self::RECORD_ASSIGNS
+        int &$instructionCount
     ) {
         if (\ast\AST_FOREACH === $node->kind) {
             if (\ast\AST_REF === $node->children['value']->kind ?? 0) {
@@ -802,13 +796,12 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                 $this->parseLoop(
                     $assignments,
                     $statement,
-                    $instructionCount,
-                    $loopFlag
+                    $instructionCount
                 );
                 continue;
             }
 
-            foreach ($statement->children as $name => $subStmt) {
+            foreach ($statement->children as $subStmt) {
                 if ($subStmt instanceof Node) {
                     $kind = $subStmt->kind;
                     if (\ast\AST_STMT_LIST === $kind) {
@@ -828,7 +821,7 @@ class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
                         $this->parseCond($assignments, $subStmt, $instructionCount);
                         $this->parseStmts($assignments, $subStmt, $instructionCount, $loopFlag);
 
-                        foreach ($subStmt->children as $argKey => $argParam) {
+                        foreach ($subStmt->children as $argParam) {
                             $this->tryVarUseUnchecked($assignments, $argParam);
                         }
                     }
