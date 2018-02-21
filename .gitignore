@@ -1,3 +1,10 @@
 vendor
 composer.lock
 tests/all_output.actual
+.phan/data
+composer.phar
+/build
+samples
+*.swo
+*.swp
+/tags
