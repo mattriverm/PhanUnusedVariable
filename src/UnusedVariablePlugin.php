@@ -23,8 +23,8 @@ use Phan\Language\Context;
 use Phan\Language\Element\FunctionInterface;
 use Phan\Language\Element\Variable;
 use Phan\PluginV2;
-use Phan\PluginV2\AnalyzeNodeCapability;
-use Phan\PluginV2\PluginAwareAnalysisVisitor;
+use Phan\PluginV2\PluginAwarePostAnalysisVisitor;
+use Phan\PluginV2\PostAnalyzeNodeCapability;
 use ast\Node;
 
 // By default, don't warn about parameters beginning with "$unused"
@@ -45,7 +45,7 @@ const WHITELISTED_UNUSED_VARIABLE_NAME = '/^(_$|unused|raii)/i';
  *
  * It hooks into one event:
  *
- * - getAnalyzeNodeVisitorClassName
+ * - getPostAnalyzeNodeVisitorClassName
  *   This method returns a class that is called on every AST node from every
  *   file being analyzed
  *
@@ -62,13 +62,13 @@ const WHITELISTED_UNUSED_VARIABLE_NAME = '/^(_$|unused|raii)/i';
  * add them to the corresponding section of README.md
  */
 final class UnusedVariablePlugin extends PluginV2
-    implements AnalyzeNodeCapability {
+    implements PostAnalyzeNodeCapability {
 
     /**
      * @return string - The name of the visitor that will be called (formerly analyzeNode)
      * @override
      */
-    public static function getAnalyzeNodeVisitorClassName() : string
+    public static function getPostAnalyzeNodeVisitorClassName() : string
     {
         return UnusedVariableReferenceAnnotatorVisitor::class;
     }
@@ -81,7 +81,7 @@ final class UnusedVariablePlugin extends PluginV2
  * Visitors such as this are useful for defining lots of different
  * checks on a node based on its kind.
  */
-final class UnusedVariableReferenceAnnotatorVisitor extends PluginAwareAnalysisVisitor {
+final class UnusedVariableReferenceAnnotatorVisitor extends PluginAwarePostAnalysisVisitor {
     // A plugin's visitors should NOT implement visit(), unless they need to.
 
     // AST node types that would both can be references, and would affect analysis.
@@ -333,7 +333,7 @@ final class UnusedVariableReferenceAnnotatorVisitor extends PluginAwareAnalysisV
     }
 }
 
-class UnusedVariableVisitor extends PluginAwareAnalysisVisitor {
+class UnusedVariableVisitor extends PluginAwarePostAnalysisVisitor {
     const RECORD_ASSIGNS = false;
     const DONT_RECORD_ASSIGNS = true;
 

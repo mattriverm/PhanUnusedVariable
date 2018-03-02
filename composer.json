@@ -12,6 +12,6 @@
         }
     ],
     "require-dev": {
-        "phan/phan": "master"
+        "phan/phan": "^0.12.2"
     }
 }

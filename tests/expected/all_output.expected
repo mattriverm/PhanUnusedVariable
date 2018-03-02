@@ -18,9 +18,11 @@ src/000_all.php:468 PhanPluginUnusedVariable Variable is never used: $validate
 src/000_all.php:475 PhanPluginUnusedVariable Variable is never used: $a
 src/001_func.php:7 PhanPluginUnusedVariable Variable is never used: $one
 src/001_func.php:8 PhanPluginUnusedVariable Variable is never used: $two
+src/001_func.php:9 PhanNoopBinaryOperator Unused result of a binary '+' operator
 src/001_func.php:25 PhanPluginUnusedPublicMethodArgument Parameter is never used: $three
 src/002_closure.php:7 PhanPluginUnusedVariable Variable is never used: $one
 src/002_closure.php:8 PhanPluginUnusedVariable Variable is never used: $two
+src/002_closure.php:9 PhanNoopBinaryOperator Unused result of a binary '+' operator
 src/002_closure.php:24 PhanPluginUnusedPublicMethodArgument Parameter is never used: $three
 src/005_static_variables.php:24 PhanPluginUnusedVariable Variable is never used: $initialized
 src/006_references.php:14 PhanPluginUnusedPublicMethodArgument Parameter is never used: $fifteen
