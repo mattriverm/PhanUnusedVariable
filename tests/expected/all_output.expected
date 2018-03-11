@@ -19,11 +19,11 @@ src/000_all.php:475 PhanPluginUnusedVariable Variable is never used: $a
 src/001_func.php:7 PhanPluginUnusedVariable Variable is never used: $one
 src/001_func.php:8 PhanPluginUnusedVariable Variable is never used: $two
 src/001_func.php:9 PhanNoopBinaryOperator Unused result of a binary '+' operator
-src/001_func.php:25 PhanPluginUnusedPublicMethodArgument Parameter is never used: $three
+src/001_func.php:25 PhanPluginUnusedGlobalFunctionArgument Parameter is never used: $three
 src/002_closure.php:7 PhanPluginUnusedVariable Variable is never used: $one
 src/002_closure.php:8 PhanPluginUnusedVariable Variable is never used: $two
 src/002_closure.php:9 PhanNoopBinaryOperator Unused result of a binary '+' operator
-src/002_closure.php:24 PhanPluginUnusedPublicMethodArgument Parameter is never used: $three
+src/002_closure.php:24 PhanPluginUnusedClosureArgument Parameter is never used: $three
 src/005_static_variables.php:24 PhanPluginUnusedVariable Variable is never used: $initialized
 src/006_references.php:14 PhanPluginUnusedPublicMethodArgument Parameter is never used: $fifteen
 src/006_references.php:35 PhanPluginUnnecessaryReference $sixteen is a reference to $seventeen, but $seventeen is never used
@@ -33,7 +33,7 @@ src/006_references.php:104 PhanPluginUnusedVariable Variable is never used: $sec
 src/007_loops.php:18 PhanPluginUnusedVariable Variable is never used: $i
 src/007_loops.php:26 PhanPluginUnusedVariable Variable is never used: $k
 src/007_loops.php:26 PhanPluginUnusedVariable Variable is never used: $v
-src/007_loops.php:32 PhanPluginUnusedPublicMethodArgument Parameter is never used: $start
+src/007_loops.php:32 PhanPluginUnusedGlobalFunctionArgument Parameter is never used: $start
 src/007_loops.php:33 PhanPluginUnusedVariable Variable is never used: $i
 src/013_closure.php:10 PhanPluginUnusedClosureUseArgument Closure use variable is never used: $c
 src/013_closure_simple.php:6 PhanPluginUnusedClosureUseArgument Closure use variable is never used: $c
