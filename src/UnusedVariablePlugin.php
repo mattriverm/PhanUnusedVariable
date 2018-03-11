@@ -935,6 +935,14 @@ class UnusedVariableVisitor extends PluginAwarePostAnalysisVisitor {
      */
     private function getIssueNameForMethodNode(Node $node, Context $context) : string
     {
+        switch ($node->kind) {
+            case \ast\AST_FUNC_DECL:
+                return "PhanPluginUnusedGlobalFunctionArgument";
+            case \ast\AST_CLOSURE:
+                return "PhanPluginUnusedClosureArgument";
+            default:
+                break;
+        }
         $fields = '';
         $flags = $node->flags;
         if (($flags & ast\flags\MODIFIER_PRIVATE) !== 0) {
