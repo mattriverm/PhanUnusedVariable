@@ -705,30 +705,39 @@ class UnusedVariableVisitor extends PluginAwarePostAnalysisVisitor {
         int &$instructionCount
     ) {
         if (\ast\AST_FOREACH === $node->kind) {
-            if (\ast\AST_REF === $node->children['value']->kind ?? 0) {
-                $name = $node->children['value']->children['var']->children['name'];
-                $this->references[$name] = $assignments[$name] = [
-                    'line' => $node->lineno,
-                    'key' => $instructionCount,
-                    'param' => false,
-                    'reference' => true,
-                    'used' => true,  // This manipulates an array, so assume it's used.
-                ];
+            $value_node = $node->children['value'];
+
+            if (\ast\AST_REF === $value_node->kind ?? 0) {
+                $var_inner_node = $value_node->children['var'];
+                if ($var_inner_node->kind === \ast\AST_VAR) {
+                    $name = $var_inner_node->children['name'];
+                    if (is_string($name)) {
+                        $this->references[$name] = $assignments[$name] = [
+                            'line' => $node->lineno,
+                            'key' => $instructionCount,
+                            'param' => false,
+                            'reference' => true,
+                            'used' => true,  // This manipulates an array, so assume it's used.
+                        ];
+                    }
+                }
             }
-            if (\ast\AST_VAR === $node->children['value']->kind ?? 0) {
+            if (ast\AST_VAR === $value_node->kind ?? 0) {
                 $this->assignSingle(
                     $assignments,
-                    $node->children['value'],
+                    $value_node,
                     $instructionCount,
-                    $node->children['value']->children['name']
+                    $value_node->children['name']
                 );
             }
-            if (!is_null($node->children['key'])) {
+            $key_node = $node->children['key'];
+            if ($key_node instanceof Node && $key_node->kind === ast\AST_VAR) {
+                // PHP allows constructs such as `foreach ($arr as $o->keyProp => $o->valueProp) {`
                 $this->assignSingle(
                     $assignments,
-                    $node->children['key'],
+                    $key_node,
                     $instructionCount,
-                    $node->children['key']->children['name']
+                    $key_node->children['name']
                 );
             }
         }
@@ -987,15 +996,26 @@ class UnusedVariableVisitor extends PluginAwarePostAnalysisVisitor {
      */
     public function analyzeMethod(Node $node)
     {
-        // Collect all assignments
-        $assignments = [];
-
         $stmts_list = $node->children['stmts'] ?? null;
         if ($stmts_list === null) {
             // abstract method or method of interface, nothing to do.
             return;
         }
         assert($stmts_list instanceof Node);
+        try {
+            $this->analyzeMethodInner($node, $stmts_list);
+        } catch (Throwable $e) {
+            // Print additional information to stderr and rethrow,
+            // in case UnusedVariablePlugin is passed an invalid AST and trigger's Phan's error/exception handler
+            // (From php-ast or TolerantASTConverter)
+            fprintf(STDERR, "UnusedVariablePlugin encountered a %s error analyzing a functionlike declared at %s:%d\n", get_class($e), $this->context->getFile(), $node->lineno ?? 0);
+            throw $e;
+        }
+    }
+
+    private function analyzeMethodInner(Node $node, Node $stmts_list) {
+        // Collect all assignments
+        $assignments = [];
 
         // Add all the method params to check if they are used
         $this->addMethodParameters($assignments, $node);
