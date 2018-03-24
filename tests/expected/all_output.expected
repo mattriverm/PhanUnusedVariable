@@ -46,3 +46,4 @@ src/017_this.php:8 PhanPluginUnusedPublicMethodArgument Parameter is never used:
 src/018_raii.php:10 PhanPluginUnusedVariable Variable is never used: $value
 src/019_final.php:4 PhanPluginUnusedPublicFinalMethodArgument Parameter is never used: $arg
 src/019_final.php:9 PhanPluginUnusedProtectedFinalMethodArgument Parameter is never used: $arg
+src/020_crash.php:20 PhanPluginUnusedVariable Variable is never used: $key
