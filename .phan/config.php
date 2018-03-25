@@ -127,7 +127,6 @@ return [
     // A list of plugin files to execute
     'plugins' => [
         'AlwaysReturnPlugin',
-        'DemoPlugin',
         'DollarDollarPlugin',
         'UnreachableCodePlugin',
         // NOTE: src/Phan/Language/Internal/FunctionSignatureMap.php mixes value without keys (as return type) with values having keys deliberately.

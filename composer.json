@@ -11,6 +11,12 @@
             "name": "Mattias Forsberg"
         }
     ],
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "7.0.24"
+        }
+    },
     "require-dev": {
         "phan/phan": "^0.12.2"
     }
